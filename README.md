@@ -128,6 +128,9 @@ state_image:
 
 ### Single District Forecast Entity List
 Requires config-template-card to pull the actual day names from the sensor.
+
+<img width="510" height="299" alt="image" src="https://github.com/user-attachments/assets/32dad367-a4bf-4996-b409-a0a0767faac0" />
+
 ```yaml
 type: custom:config-template-card
 variables:
@@ -191,6 +194,8 @@ card:
 ### Multiple District Forecast Table
 Requires flex-table-card. Can't currently get dynamic column headers so manually set to Today/Tomorrow/Day 3/Day 4.
 Colours might need tweaking to match.
+
+<img width="1040" height="544" alt="image" src="https://github.com/user-attachments/assets/49ce3a18-7731-4eed-90b6-91688bc06183" />
 
 ```yaml
 type: custom:flex-table-card
