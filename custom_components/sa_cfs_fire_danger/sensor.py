@@ -220,7 +220,7 @@ class CFSRegionSensor(Entity):
                 attrs[f"{day_key}_rating"] = danger_el.text
                 attrs[f"{day_key}_fbi"] = fbi_el.text
                 attrs[f"{day_key}_fireban"] = "Yes" if ban_el.text.lower() == 'true' else "No"
-                attrs[f"{day_key}_day_name"] = last_processed_date.strftime('%A')
+                attrs[f"{day_key}_name"] = last_processed_date.strftime('%A')
                 attrs[f"{day_key}_date"] = last_processed_date.strftime('%d/%m')
                 day_count += 1
         return attrs
