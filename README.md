@@ -1,6 +1,12 @@
 # Home Assistant - SA CFS Fire Danger
 Home Assistant Custom Integration to pull SA CFS Fire Danger Ratings and Fire Ban information.
 
+[![GH-release](https://img.shields.io/github/v/release/KablammoNick/homeassistant.sa_cfs_fire_danger.svg?style=flat-square)](https://github.com/KablammoNick/homeassistant.sa_cfs_fire_danger/releases)
+[![GH-downloads](https://img.shields.io/github/downloads/KablammoNick/homeassistant.sa_cfs_fire_danger/total?style=flat-square)](https://github.com/KablammoNick/homeassistant.sa_cfs_fire_danger/releases)
+[![GH-last-commit](https://img.shields.io/github/last-commit/KablammoNick/homeassistant.sa_cfs_fire_danger.svg?style=flat-square)](https://github.com/KablammoNick/homeassistant.sa_cfs_fire_danger/commits/master)
+[![GH-code-size](https://img.shields.io/github/languages/code-size/KablammoNick/homeassistant.sa_cfs_fire_danger.svg?color=red&style=flat-square)](https://github.com/KablammoNick/homeassistant.sa_cfs_fire_danger)
+
+
 ## WARNING
 This integration is still in development and rapid changes may break things!
 
@@ -104,11 +110,12 @@ During the config flow, you can select none, or any number of specific regions t
 | `friendly_name` | SA CFS Flinders ||
 
 ## Usage/Examples
-Screenshots coming...
-Example code shows Flinders district, and possibly a few Sections configurations as these were pulled from my test setup.
+Example code shows Flinders district, and possibly a few Sections specific configurations as these were pulled from my test setup.
 
 ### Picture Entity
-Picture Entity to show the coloured wheel. SVG's to be included shortly, or use your own.
+Picture Entity to show the coloured wheel. 3 different style SVG's I've found to be included (pending checking copyright etc) shortly, or use your own.
+<img width="1578" height="347" alt="image" src="https://github.com/user-attachments/assets/e14a068b-0c37-4897-a326-1df9bbed6398" />
+
 
 
 ```yaml
