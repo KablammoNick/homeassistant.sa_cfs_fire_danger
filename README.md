@@ -192,8 +192,7 @@ card:
 ```
 
 ### Multiple District Forecast Table
-Requires flex-table-card. Can't currently get dynamic column headers so manually set to Today/Tomorrow/Day 3/Day 4.
-Colours might need tweaking to match.
+Requires flex-table-card and config-template-card. Colours might need tweaking to match.
 
 <img width="1040" height="544" alt="image" src="https://github.com/user-attachments/assets/49ce3a18-7731-4eed-90b6-91688bc06183" />
 
