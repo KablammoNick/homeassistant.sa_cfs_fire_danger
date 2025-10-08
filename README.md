@@ -199,91 +199,124 @@ card:
 ```
 
 ### Multiple District Forecast Table
-Requires flex-table-card and config-template-card. Colours might need tweaking to match.
+Requires flex-table-card and config-template-card. Example code has 5 days worth - but depending on source data sometimes day 5 is not available.
 
 <img width="1040" height="544" alt="image" src="https://github.com/user-attachments/assets/49ce3a18-7731-4eed-90b6-91688bc06183" />
 
 ```yaml
-type: custom:flex-table-card
-title: SA CFS Fire Danger Ratings
+type: custom:config-template-card
+variables:
+  DAY1_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_1_name
+  DAY2_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_2_name
+  DAY3_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_3_name
+  DAY4_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_4_name
+  DAY5_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_5_name
+  DAY1_DATE: states['sensor.sa_cfs_fire_danger'].attributes.day_1_date
+  DAY2_DATE: states['sensor.sa_cfs_fire_danger'].attributes.day_2_date
+  DAY3_DATE: states['sensor.sa_cfs_fire_danger'].attributes.day_3_date
+  DAY4_DATE: states['sensor.sa_cfs_fire_danger'].attributes.day_4_date
+  DAY5_DATE: states['sensor.sa_cfs_fire_danger'].attributes.day_5_date
 entities:
-  include: sensor.sa_cfs*
-  exclude: sensor.sa_cfs_fire_danger
-columns:
-  - data: region_name
-    name: Region
-  - data: day_1_rating
-    name: Today
-    align: center
-    modify: |-
-      if (x == "No Rating")
-        "No Rating"
-      else if (x == "Moderate")
-        '<div style="background-color:#35C300;">Moderate</div>'
-      else if (x == "High")
-        '<div style="background-color:#FFDD00;">High</div>'
-      else if (x == "Extreme")
-        '<div style="background-color:#FF7A00;">Extreme</div>'
-      else if (x == "Catastrophic")
-        '<div style="background-color:#BD0000;color:#FFFFFF;">Catastrophic</div>'
-      else x
-  - data: day_1_fbi
-    name: ""
-    align: center
-  - data: day_2_rating
-    name: Tomorrow
-    align: center
-    modify: |-
-      if (x == "No Rating")
-        "No Rating"
-      else if (x == "Moderate")
-        '<div style="background-color:#35C300;">Moderate</div>'
-      else if (x == "High")
-        '<div style="background-color:#FFDD00;">High</div>'
-      else if (x == "Extreme")
-        '<div style="background-color:#FF7A00;">Extreme</div>'
-      else if (x == "Catastrophic")
-        '<div style="background-color:#BD0000;color:#FFFFFF;">Catastrophic</div>'
-      else x
-  - data: day_2_fbi
-    name: ""
-    align: center
-  - data: day_3_rating
-    name: Day 3
-    align: center
-    modify: |-
-      if (x == "No Rating")
-        "No Rating"
-      else if (x == "Moderate")
-        '<div style="background-color:#35C300;">Moderate</div>'
-      else if (x == "High")
-        '<div style="background-color:#FFDD00;">High</div>'
-      else if (x == "Extreme")
-        '<div style="background-color:#FF7A00;">Extreme</div>'
-      else if (x == "Catastrophic")
-        '<div style="background-color:#BD0000;color:#FFFFFF;">Catastrophic</div>'
-      else x
-  - data: day_3_fbi
-    name: ""
-    align: center
-  - data: day_4_rating
-    name: Day 4
-    align: center
-    modify: |-
-      if (x == "No Rating")
-        "No Rating"
-      else if (x == "Moderate")
-        '<div style="background-color:#35C300;">Moderate</div>'
-      else if (x == "High")
-        '<div style="background-color:#FFDD00;">High</div>'
-      else if (x == "Extreme")
-        '<div style="background-color:#FF7A00;">Extreme</div>'
-      else if (x == "Catastrophic")
-        '<div style="background-color:#BD0000;color:#FFFFFF;">Catastrophic</div>'
-      else x
-  - data: day_4_fbi
-    name: ""
-    align: center
+  - sensor.sa_cfs_fire_danger
+card:
+  type: custom:flex-table-card
+  title: SA CFS Fire Danger Ratings
+  entities:
+    include: sensor.sa_cfs*
+    exclude: sensor.sa_cfs_fire_danger
+  columns:
+    - data: region_name
+      name: Region
+    - data: day_1_rating
+      name: Today
+      align: center
+      modify: |-
+        if (x == "No Rating")
+          "No Rating"
+        else if (x == "Moderate")
+          '<div style="background-color:#64bf30;">Moderate</div>'
+        else if (x == "High")
+          '<div style="background-color:#fedd3a;">High</div>'
+        else if (x == "Extreme")
+          '<div style="background-color:#f78100;">Extreme</div>'
+        else if (x == "Catastrophic")
+          '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div>'
+        else x
+    - data: day_1_fbi
+      name: ""
+      align: center
+    - data: day_2_rating
+      name: Tomorrow
+      align: center
+      modify: |-
+        if (x == "No Rating")
+          "No Rating"
+        else if (x == "Moderate")
+          '<div style="background-color:#64bf30;">Moderate</div>'
+        else if (x == "High")
+          '<div style="background-color:#fedd3a;">High</div>'
+        else if (x == "Extreme")
+          '<div style="background-color:#f78100;">Extreme</div>'
+        else if (x == "Catastrophic")
+          '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div>'
+        else x
+    - data: day_2_fbi
+      name: ""
+      align: center
+    - data: day_3_rating
+      name: ${DAY3_DATE}
+      align: center
+      modify: |-
+        if (x == "No Rating")
+          "No Rating"
+        else if (x == "Moderate")
+          '<div style="background-color:#64bf30;">Moderate</div>'
+        else if (x == "High")
+          '<div style="background-color:#fedd3a;">High</div>'
+        else if (x == "Extreme")
+          '<div style="background-color:#f78100;">Extreme</div>'
+        else if (x == "Catastrophic")
+          '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div>'
+        else x
+    - data: day_3_fbi
+      name: ""
+      align: center
+    - data: day_4_rating
+      name: ${DAY4_DATE}
+      align: center
+      modify: |-
+        if (x == "No Rating")
+          "No Rating"
+        else if (x == "Moderate")
+          '<div style="background-color:#64bf30;">Moderate</div>'
+        else if (x == "High")
+          '<div style="background-color:#fedd3a;">High</div>'
+        else if (x == "Extreme")
+          '<div style="background-color:#f78100;">Extreme</div>'
+        else if (x == "Catastrophic")
+          '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div>'
+        else x
+    - data: day_4_fbi
+      name: ""
+      align: center
+    - data: day_5_rating
+      name: ${DAY5_DATE}
+      align: center
+      modify: |-
+        if (x == "No Rating")
+          "No Rating"
+        else if (x == "Moderate")
+          '<div style="background-color:#64bf30;">Moderate</div>'
+        else if (x == "High")
+          '<div style="background-color:#fedd3a;">High</div>'
+        else if (x == "Extreme")
+          '<div style="background-color:#f78100;">Extreme</div>'
+        else if (x == "Catastrophic")
+          '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div>'
+        else x
+    - data: day_5_fbi
+      name: ""
+      align: center
 grid_options:
   columns: 24
 ```
