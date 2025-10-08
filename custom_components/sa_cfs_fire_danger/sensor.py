@@ -27,6 +27,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     coordinator = CFSDataUpdateCoordinator(hass)
     await coordinator.async_config_entry_first_refresh()
 
+    # Store the coordinator
+    hass.data[DOMAIN][entry.entry_id] = coordinator
+
     # Correctly get district selections from options, falling back to initial data
     selected_districts_for_sensors = entry.options.get(
         CONF_DISTRICTS, entry.data.get(CONF_DISTRICTS, [])
