@@ -9,17 +9,17 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, CONF_REGIONS, XML_URL
+from .const import DOMAIN, CONF_DISTRICTS, XML_URL
 
 _LOGGER = logging.getLogger(__name__)
-SCAN_INTERVAL = timedelta(minutes=30)
+SCAN_INTERVAL = timedelta(hours=1)
 MAX_FORECAST_DAYS = 5
 
-def clean_region_key(region_name):
-    """Helper function to create a consistent key from region names."""
-    if not region_name:
+def clean_district_key(district_name):
+    """Helper function to create a consistent key from district names."""
+    if not district_name:
         return None
-    return region_name.lower().replace(' ', '_').replace('-', '_').replace('/', '')
+    return district_name.lower().replace(' ', '_').replace('-', '_').replace('/', '')
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Set up the sensor platform."""
@@ -27,17 +27,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     coordinator = CFSDataUpdateCoordinator(hass)
     await coordinator.async_config_entry_first_refresh()
 
-    # Correctly get region selections from options, falling back to initial data
-    selected_regions_for_sensors = entry.options.get(
-        CONF_REGIONS, entry.data.get(CONF_REGIONS, [])
+    # Correctly get district selections from options, falling back to initial data
+    selected_districts_for_sensors = entry.options.get(
+        CONF_DISTRICTS, entry.data.get(CONF_DISTRICTS, [])
     )
     
     sensors = []
     if coordinator.data:
         for area in coordinator.data.get("areas", []):
-            region_key = clean_region_key(area.get("description"))
-            if region_key in selected_regions_for_sensors:
-                sensors.append(CFSRegionSensor(coordinator, region_key))
+            district_key = clean_district_key(area.get("description"))
+            if district_key in selected_districts_for_sensors:
+                sensors.append(CFSDistrictSensor(coordinator, district_key))
         
         sensors.append(CFSSummarySensor(coordinator))
 
@@ -110,7 +110,7 @@ class CFSSummarySensor(Entity):
         if not self.coordinator.data or not self.coordinator.data.get("areas"):
             return {}
 
-        attrs = {"region_count": len(self.coordinator.data.get("areas", []))}
+        attrs = {"district_count": len(self.coordinator.data.get("areas", []))}
         
         current_date_utc = datetime.now(timezone.utc).date()
         for i in range(1, MAX_FORECAST_DAYS + 1):
@@ -119,8 +119,8 @@ class CFSSummarySensor(Entity):
             attrs[f"day_{i}_date"] = target_date.strftime('%d/%m')
 
         for area in self.coordinator.data.get("areas", []):
-            region_key = clean_region_key(area.get('description'))
-            if not region_key:
+            district_key = clean_district_key(area.get('description'))
+            if not district_key:
                 continue
 
             forecast_period = area.find('./forecast-period')
@@ -130,9 +130,9 @@ class CFSSummarySensor(Entity):
                 ban_el = forecast_period.find("./text[@type='fire_ban']")
 
                 if danger_el is not None and fbi_el is not None and ban_el is not None:
-                    attrs[f"{region_key}_rating"] = danger_el.text
-                    attrs[f"{region_key}_fbi"] = fbi_el.text
-                    attrs[f"{region_key}_fireban"] = "Yes" if ban_el.text.lower() == 'true' else "No"
+                    attrs[f"{district_key}_rating"] = danger_el.text
+                    attrs[f"{district_key}_fbi"] = fbi_el.text
+                    attrs[f"{district_key}_fireban"] = "Yes" if ban_el.text.lower() == 'true' else "No"
         
         return attrs
 
@@ -148,18 +148,18 @@ class CFSSummarySensor(Entity):
         )
 
 
-class CFSRegionSensor(Entity):
-    """Representation of a single CFS region sensor."""
+class CFSDistrictSensor(Entity):
+    """Representation of a single CFS district sensor."""
 
-    def __init__(self, coordinator: CFSDataUpdateCoordinator, region_key: str):
+    def __init__(self, coordinator: CFSDataUpdateCoordinator, district_key: str):
         """Initialize the sensor."""
         self.coordinator = coordinator
-        self._region_key = region_key
+        self._district_key = district_key
         self._area_data = None 
         
-        pretty_name = self._region_key.replace('_', ' ').title()
+        pretty_name = self._district_key.replace('_', ' ').title()
         self._attr_name = f"SA CFS {pretty_name}"
-        self._attr_unique_id = f"{DOMAIN}_{self._region_key}"
+        self._attr_unique_id = f"{DOMAIN}_{self._district_key}"
         self._attr_icon = "mdi:map-marker-alert-outline"
         
     def _update_area_data(self):
@@ -167,9 +167,9 @@ class CFSRegionSensor(Entity):
         self._area_data = None
         if self.coordinator.data and self.coordinator.data.get("areas"):
             for area in self.coordinator.data.get("areas", []):
-                if clean_region_key(area.get("description")) == self._region_key:
+                if clean_district_key(area.get("description")) == self._district_key:
                     self._area_data = area
-                    self._attr_name = f"SA CFS {area.get('description', self._region_key)}"
+                    self._attr_name = f"SA CFS {area.get('description', self._district_key)}"
                     break
 
     @property
@@ -188,12 +188,12 @@ class CFSRegionSensor(Entity):
 
     @property
     def extra_state_attributes(self):
-        """Return the forecast attributes for this specific region."""
+        """Return the forecast attributes for this specific district."""
         self._update_area_data()
         if not self._area_data:
             return {}
 
-        attrs = {"region_name": self._area_data.get('description')}
+        attrs = {"district_name": self._area_data.get('description')}
         periods = self._area_data.findall('./forecast-period')
         
         last_processed_date = None
@@ -220,7 +220,7 @@ class CFSRegionSensor(Entity):
                 attrs[f"{day_key}_rating"] = danger_el.text
                 attrs[f"{day_key}_fbi"] = fbi_el.text
                 attrs[f"{day_key}_fireban"] = "Yes" if ban_el.text.lower() == 'true' else "No"
-                attrs[f"{day_key}_day_name"] = last_processed_date.strftime('%A')
+                attrs[f"{day_key}_name"] = last_processed_date.strftime('%A')
                 attrs[f"{day_key}_date"] = last_processed_date.strftime('%d/%m')
                 day_count += 1
         return attrs
