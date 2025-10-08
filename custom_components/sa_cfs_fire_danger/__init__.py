@@ -4,7 +4,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from .const import DOMAIN, CONF_REGIONS
+from .const import DOMAIN, CONF_DISTRICTS
 
 PLATFORMS = ["sensor"]
 _LOGGER = logging.getLogger(__name__)
@@ -13,12 +13,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up SA CFS Fire Danger from a config entry and clean up orphaned entities."""
     hass.data.setdefault(DOMAIN, {})
 
-    # Correctly get the current list of selected regions from options or initial data
-    selected_regions = entry.options.get(CONF_REGIONS, entry.data.get(CONF_REGIONS, []))
+    # Correctly get the current list of selected districts from options or initial data
+    selected_districts = entry.options.get(CONF_DISTRICTS, entry.data.get(CONF_DISTRICTS, []))
     
     # Create a set of unique IDs that should exist.
     # The summary sensor (unique_id == DOMAIN) should always exist.
-    desired_unique_ids = {f"{DOMAIN}_{key}" for key in selected_regions}
+    desired_unique_ids = {f"{DOMAIN}_{key}" for key in selected_districts}
     desired_unique_ids.add(DOMAIN)
 
     # Get the entity registry

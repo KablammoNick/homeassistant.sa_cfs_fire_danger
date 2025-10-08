@@ -7,10 +7,10 @@ from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers import selector
 
-from .const import DOMAIN, CONF_REGIONS, XML_URL
+from .const import DOMAIN, CONF_DISTRICTS, XML_URL
 
-async def get_all_regions(hass):
-    """Fetch all available regions from the CFS XML feed."""
+async def get_all_districts(hass):
+    """Fetch all available districts from the CFS XML feed."""
     session = async_get_clientsession(hass)
     async with session.get(XML_URL, timeout=10) as response:
         response.raise_for_status()
@@ -22,12 +22,12 @@ async def get_all_regions(hass):
         root = ET.fromstring(xml_data)
         area_elements = root.findall('./forecast/area[@type="fire-district"]')
         
-        all_regions = {
+        all_districts = {
             area.get('description').lower().replace(' ', '_').replace('-', '_').replace('/', ''): area.get('description')
             for area in area_elements if area.get('description')
         }
         
-        return dict(sorted(all_regions.items(), key=lambda item: item[1]))
+        return dict(sorted(all_districts.items(), key=lambda item: item[1]))
 
 class CFSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for SA CFS Fire Danger."""
@@ -40,18 +40,18 @@ class CFSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(title="SA CFS Fire Danger", data=user_input)
 
         try:
-            sorted_regions = await get_all_regions(self.hass)
+            sorted_districts = await get_all_districts(self.hass)
         except (aiohttp.ClientError, ET.ParseError):
             return self.async_abort(reason="cannot_connect")
 
-        if not sorted_regions:
-            return self.async_abort(reason="no_regions_found")
+        if not sorted_districts:
+            return self.async_abort(reason="no_districts_found")
 
         schema = vol.Schema({
-            vol.Optional(CONF_REGIONS, default=[]): selector.SelectSelector(
+            vol.Optional(CONF_DISTRICTS, default=[]): selector.SelectSelector(
                 selector.SelectSelectorConfig(
                     options=[
-                        {"value": key, "label": name} for key, name in sorted_regions.items()
+                        {"value": key, "label": name} for key, name in sorted_districts.items()
                     ],
                     multiple=True,
                     sort=False
@@ -81,20 +81,20 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             return self.async_create_entry(title="", data=user_input)
 
         try:
-            sorted_regions = await get_all_regions(self.hass)
+            sorted_districts = await get_all_districts(self.hass)
         except (aiohttp.ClientError, ET.ParseError):
             return self.async_abort(reason="cannot_connect")
 
         # Correctly get current selections from options, falling back to data for the first time
-        current_regions = self.config_entry.options.get(
-            CONF_REGIONS, self.config_entry.data.get(CONF_REGIONS, [])
+        current_districts = self.config_entry.options.get(
+            CONF_DISTRICTS, self.config_entry.data.get(CONF_DISTRICTS, [])
         )
 
         schema = vol.Schema({
-            vol.Optional(CONF_REGIONS, default=current_regions): selector.SelectSelector(
+            vol.Optional(CONF_DISTRICTS, default=current_districts): selector.SelectSelector(
                 selector.SelectSelectorConfig(
                     options=[
-                        {"value": key, "label": name} for key, name in sorted_regions.items()
+                        {"value": key, "label": name} for key, name in sorted_districts.items()
                     ],
                     multiple=True,
                     sort=False

@@ -5,12 +5,12 @@
         "title": "SA CFS Fire Danger Setup",
         "description": "Please select the fire ban districts you wish to create individual sensors for. \n\nIf you select none, only the main summary sensor (`sensor.sa_cfs_fire_danger`) will be created.",
         "data": {
-          "regions": "Regions to Monitor"
+          "districts": "Districts to Monitor"
         }
       }
     },
     "error": {
-      "cannot_connect": "Unable to connect to the CFS server to retrieve the list of regions. Please check your internet connection and try again.",
+      "cannot_connect": "Unable to connect to the CFS server to retrieve the list of districts. Please check your internet connection and try again.",
       "no_regions_found": "No fire ban districts were found in the data from the CFS server."
     },
     "abort": {
@@ -20,10 +20,10 @@
   "options": {
     "step": {
       "init": {
-        "title": "Update Monitored Regions",
-        "description": "Select the fire ban districts you wish to monitor. Deselecting a region will remove its sensor.",
+        "title": "Update Monitored Districts",
+        "description": "Select the fire ban districts you wish to monitor. Deselecting a district will remove its sensor.",
         "data": {
-          "regions": "Regions to Monitor"
+          "districts": "Districts to Monitor"
         }
       }
     }
