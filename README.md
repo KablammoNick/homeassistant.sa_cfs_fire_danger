@@ -22,6 +22,8 @@ At the moment it scrapes the data every 60 mins, and stores the last update time
 
 Whilst it normally returns 5 days worth of data, for some reason at certain times the CFS XML will have duplicate data for day 1 and 2. The code will cycle through and ignore duplicate data is present, and move days forward - leaving day 5 as N/A sometimes. I had considered whether to just drop day 5 completely but for now it remains.
 
+Still working on when it refreshes officially, as it sometimes has 5 days worth, and other times day 1 is repeated twice.
+
 ## CFS Fire Ban Districts
 1. Adelaide Metropolitan
 2. Mount Lofty Ranges
@@ -197,7 +199,7 @@ card:
 ```
 
 ### Multiple District Forecast Table
-Requires flex-table-card and config-template-card. Example code has 5 days worth - but depending on source data sometimes day 5 is not available.
+Requires flex-table-card and config-template-card.
 
 <img width="1040" height="544" alt="image" src="https://github.com/user-attachments/assets/49ce3a18-7731-4eed-90b6-91688bc06183" />
 
@@ -295,24 +297,6 @@ card:
           '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div>'
         else x
     - data: day_4_fbi
-      name: ""
-      align: center
-    - data: day_5_rating
-      name: ${DAY5_DATE}
-      align: center
-      modify: |-
-        if (x == "No Rating")
-          "No Rating"
-        else if (x == "Moderate")
-          '<div style="background-color:#64bf30;">Moderate</div>'
-        else if (x == "High")
-          '<div style="background-color:#fedd3a;">High</div>'
-        else if (x == "Extreme")
-          '<div style="background-color:#f78100;">Extreme</div>'
-        else if (x == "Catastrophic")
-          '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div>'
-        else x
-    - data: day_5_fbi
       name: ""
       align: center
 grid_options:
