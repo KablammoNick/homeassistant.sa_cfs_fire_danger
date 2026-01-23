@@ -135,6 +135,7 @@ This is currently a bit hacky as requires a Template binary sensor with the spec
 ```yaml
 {{ state_attr('sensor.sa_cfs_flinders', 'day_1_fireban') == 'Yes' }}
 ```
+<img width="223" height="146" alt="image" src="https://github.com/user-attachments/assets/cd18648d-c0b8-42e7-80f1-b81e0e2bc31d" />
 
 ```yaml
 type: picture-elements
