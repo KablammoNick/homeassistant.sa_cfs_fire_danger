@@ -73,7 +73,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry):
         """Initialize options flow."""
-        self.config_entry = config_entry
+        # This method is required to accept the config_entry argument.
+        # We do nothing here and let the Home Assistant framework populate
+        # the self.config_entry property for us to use in other methods.
+        pass
 
     async def async_step_init(self, user_input=None):
         """Manage the options."""
@@ -85,7 +88,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         except (aiohttp.ClientError, ET.ParseError):
             return self.async_abort(reason="cannot_connect")
 
-        # Correctly get current selections from options, falling back to data for the first time
+        # The self.config_entry property is automatically available here
         current_districts = self.config_entry.options.get(
             CONF_DISTRICTS, self.config_entry.data.get(CONF_DISTRICTS, [])
         )
