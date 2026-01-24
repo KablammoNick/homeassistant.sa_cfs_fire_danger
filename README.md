@@ -112,8 +112,12 @@ During the config flow, you can select none, or any number of specific districts
 ## Usage/Examples
 Example code shows Flinders district, and possibly a few Sections specific configurations as these were pulled from my test setup.
 
+### Custom Card
+Same as the original picture entity card with fire ban overlay - now has a custom card and GUI config to set it up:
+<img width="931" height="524" alt="image" src="https://github.com/user-attachments/assets/f229acb1-8dc7-400f-b77d-d7f831098f64" />
+
 ### Picture Entity
-Picture Entity to show the coloured wheel. 3 different style SVG's I've found to be included (pending checking copyright etc) shortly, or use your own.
+Picture Entity to show the coloured wheel. 3 different style SVG's I've found are included, or use your own.
 <img width="1578" height="347" alt="image" src="https://github.com/user-attachments/assets/e14a068b-0c37-4897-a326-1df9bbed6398" />
 ```yaml
 type: picture-entity
