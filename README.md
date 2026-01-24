@@ -119,6 +119,8 @@ Same as the original picture entity card with fire ban overlay - now has a custo
 ### Picture Entity
 Picture Entity to show the coloured wheel. 3 different style SVG's I've found are included, or use your own.
 <img width="1578" height="347" alt="image" src="https://github.com/user-attachments/assets/e14a068b-0c37-4897-a326-1df9bbed6398" />
+Change the images to gauge1 / gauge2 / gauge3 as needed for the different styles.
+
 ```yaml
 type: picture-entity
 entity: sensor.sa_cfs_flinders
@@ -126,12 +128,12 @@ fit_mode: contain
 show_state: false
 show_name: false
 state_image:
-  unknown: /local/images/afdr-icon-unavailable.svg
-  No Rating: /local/images/afdr-icon-norating.svg
-  Moderate: /local/images/afdr-icon-moderate.svg
-  High: /local/images/afdr-icon-high.svg
-  Extreme: /local/images/afdr-icon-extreme.svg
-  Catastrophic: /local/images/afdr-icon-catastrophic.svg
+  unknown: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-unavailable.svg
+  No Rating: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-norating.svg
+  Moderate: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-moderate.svg
+  High: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-high.svg
+  Extreme: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-extreme.svg
+  Catastrophic: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-catastrophic.svg
 ```
 ### Picture Elements with Fire Ban overlay
 Picture Entity to show the coloured wheel as above, but with a WIP overlay icon if today is a fire ban.
@@ -143,17 +145,17 @@ This is currently a bit hacky as requires a Template binary sensor with the spec
 
 ```yaml
 type: picture-elements
-image: /local/images/afdr-gauge-norating.svg
+image: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-norating.svg
 elements:
   - type: image
     entity: sensor.sa_cfs_flinders
     state_image:
-      unknown: /local/images/afdr-gauge-unavailable.svg
-      No Rating: /local/images/afdr-gauge-norating.svg
-      Moderate: /local/images/afdr-gauge-moderate.svg
-      High: /local/images/afdr-gauge-high.svg
-      Extreme: /local/images/afdr-gauge-extreme.svg
-      Catastrophic: /local/images/afdr-gauge-catastrophic.svg
+      unknown: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-unavailable.svg
+      No Rating: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-norating.svg
+      Moderate: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-moderate.svg
+      High: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-high.svg
+      Extreme: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-extreme.svg
+      Catastrophic: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-catastrophic.svg
     tap_action: none
     hold_action: none
     style:
@@ -169,7 +171,7 @@ elements:
       - type: image
         entity: binary_sensor.fire_ban_today
         state_image:
-          "on": /local/images/fire_ban.svg
+          "on": /hacsfiles/sa_cfs_fire_danger/fire_ban.svg
         tap_action: none
         hold_action: none
         style:
