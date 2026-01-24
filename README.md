@@ -16,6 +16,7 @@ If you're here, you've probably been sent the link to test for me, or you're ver
 
 ## Installation
 Install as a custom repository in HACS, and the config flow will let you select which districts you want to monitor.
+v0.1.3 adds a custom card for the single gauge.
 
 ## Data Refresh
 At the moment it scrapes the data every 60 mins, and stores the last update time as the status of `sensor.sa_cfs_fire_danger`.
