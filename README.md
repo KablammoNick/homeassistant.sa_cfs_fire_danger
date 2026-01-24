@@ -22,6 +22,8 @@ At the moment it scrapes the data every 60 mins, and stores the last update time
 
 Whilst it normally returns 5 days worth of data, for some reason at certain times the CFS XML will have duplicate data for day 1 and 2. The code will cycle through and ignore duplicate data is present, and move days forward - leaving day 5 as N/A sometimes. I had considered whether to just drop day 5 completely but for now it remains.
 
+Still working on when it refreshes officially, as it sometimes has 5 days worth, and other times day 1 is repeated twice.
+
 ## CFS Fire Ban Districts
 1. Adelaide Metropolitan
 2. Mount Lofty Ranges
@@ -113,9 +115,6 @@ Example code shows Flinders district, and possibly a few Sections specific confi
 ### Picture Entity
 Picture Entity to show the coloured wheel. 3 different style SVG's I've found to be included (pending checking copyright etc) shortly, or use your own.
 <img width="1578" height="347" alt="image" src="https://github.com/user-attachments/assets/e14a068b-0c37-4897-a326-1df9bbed6398" />
-
-
-
 ```yaml
 type: picture-entity
 entity: sensor.sa_cfs_flinders
@@ -130,6 +129,53 @@ state_image:
   Extreme: /local/images/afdr-icon-extreme.svg
   Catastrophic: /local/images/afdr-icon-catastrophic.svg
 ```
+### Picture Elements with Fire Ban overlay
+Picture Entity to show the coloured wheel as above, but with a WIP overlay icon if today is a fire ban.
+This is currently a bit hacky as requires a Template binary sensor with the specific region set.
+```yaml
+{{ state_attr('sensor.sa_cfs_flinders', 'day_1_fireban') == 'Yes' }}
+```
+<img width="223" height="146" alt="image" src="https://github.com/user-attachments/assets/cd18648d-c0b8-42e7-80f1-b81e0e2bc31d" />
+
+```yaml
+type: picture-elements
+image: /local/images/afdr-gauge-norating.svg
+elements:
+  - type: image
+    entity: sensor.sa_cfs_flinders
+    state_image:
+      unknown: /local/images/afdr-gauge-unavailable.svg
+      No Rating: /local/images/afdr-gauge-norating.svg
+      Moderate: /local/images/afdr-gauge-moderate.svg
+      High: /local/images/afdr-gauge-high.svg
+      Extreme: /local/images/afdr-gauge-extreme.svg
+      Catastrophic: /local/images/afdr-gauge-catastrophic.svg
+    tap_action: none
+    hold_action: none
+    style:
+      left: 50%
+      top: 50%
+      width: 100%
+      height: 100%
+  - type: conditional
+    conditions:
+      - entity: binary_sensor.fire_ban_today
+        state: "on"
+    elements:
+      - type: image
+        entity: binary_sensor.fire_ban_today
+        state_image:
+          "on": /local/images/fire_ban.svg
+        tap_action: none
+        hold_action: none
+        style:
+          transform: none
+          left: 0%
+          top: 0%
+          width: 25%
+          height: 100%
+```
+
 
 ### Single District Forecast Entity List
 Requires config-template-card to pull the actual day names from the sensor.
@@ -197,7 +243,7 @@ card:
 ```
 
 ### Multiple District Forecast Table
-Requires flex-table-card and config-template-card. Example code has 5 days worth - but depending on source data sometimes day 5 is not available.
+Requires flex-table-card and config-template-card.
 
 <img width="1040" height="544" alt="image" src="https://github.com/user-attachments/assets/49ce3a18-7731-4eed-90b6-91688bc06183" />
 
@@ -297,22 +343,178 @@ card:
     - data: day_4_fbi
       name: ""
       align: center
-    - data: day_5_rating
-      name: ${DAY5_DATE}
+grid_options:
+  columns: 24
+```
+
+### Multiple District Forecast Table (with Fire Bans)
+Requires flex-table-card and config-template-card.
+Does some wonky line spacing if one day in the row has a fire ban - or if the district doesn't have any all week. Haven't looked into it much yet.
+
+<img width="934" height="756" alt="image" src="https://github.com/user-attachments/assets/e8c2e800-33cf-4429-af7d-fb351e0fe23b" />
+
+```yaml
+type: custom:config-template-card
+variables:
+  DAY1_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_1_name
+  DAY2_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_2_name
+  DAY3_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_3_name
+  DAY4_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_4_name
+  DAY5_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_5_name
+  DAY1_DATE: states['sensor.sa_cfs_fire_danger'].attributes.day_1_date
+  DAY2_DATE: states['sensor.sa_cfs_fire_danger'].attributes.day_2_date
+  DAY3_DATE: states['sensor.sa_cfs_fire_danger'].attributes.day_3_date
+  DAY4_DATE: states['sensor.sa_cfs_fire_danger'].attributes.day_4_date
+  DAY5_DATE: states['sensor.sa_cfs_fire_danger'].attributes.day_5_date
+entities:
+  - sensor.sa_cfs_fire_danger
+card:
+  type: custom:flex-table-card
+  title: SA CFS Fire Danger Ratings
+  entities:
+    include: sensor.sa_cfs*
+    exclude: sensor.sa_cfs_fire_danger
+  columns:
+    - data: district_name
+      name: District
+    - data: day_1_rating, day_1_fireban
+      name: Today
       align: center
+      multi_delimiter: ","
       modify: |-
-        if (x == "No Rating")
-          "No Rating"
-        else if (x == "Moderate")
-          '<div style="background-color:#64bf30;">Moderate</div>'
-        else if (x == "High")
-          '<div style="background-color:#fedd3a;">High</div>'
-        else if (x == "Extreme")
-          '<div style="background-color:#f78100;">Extreme</div>'
-        else if (x == "Catastrophic")
-          '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div>'
+        var value1=String(x.split(',')[0]);
+        var value2=String(x.split(',')[1]);
+        if (value2 == "Yes")
+          if (value1 == "No Rating")
+            'No Rating<br><div style="background-color:#ff0000;">FIRE BAN</div>'
+          else if (value1 == "Moderate")
+            '<div style="background-color:#64bf30;">Moderate</div><div style="background-color:#ff0000;">FIRE BAN</div>'
+          else if (value1 == "High")
+            '<div style="background-color:#fedd3a;">High</div><div style="background-color:#ff0000;">FIRE BAN</div>'
+          else if (value1 == "Extreme")
+            '<div style="background-color:#f78100;">Extreme</div><div style="background-color:#ff0000;">FIRE BAN</div>'
+          else if (value1 == "Catastrophic")
+            '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div><div style="background-color:#ff0000;">FIRE BAN</div>'
+          else value1
+        else if (value2 == "No")
+          if (value1 == "No Rating")
+            "No Rating"
+          else if (value1 == "Moderate")
+            '<div style="background-color:#64bf30;color:#000000;">Moderate</div>'
+          else if (value1 == "High")
+            '<div style="background-color:#fedd3a;color:#000000;">High</div>'
+          else if (value1 == "Extreme")
+            '<div style="background-color:#f78100;color:#000000;">Extreme</div>'
+          else if (value1 == "Catastrophic")
+            '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div>'
+          else x
         else x
-    - data: day_5_fbi
+    - data: day_1_fbi
+      name: ""
+      align: center
+    - data: day_2_rating, day_2_fireban
+      name: Tomorrow
+      align: center
+      multi_delimiter: ","
+      modify: |-
+        var value1=String(x.split(',')[0]);
+        var value2=String(x.split(',')[1]);
+        if (value2 == "Yes")
+          if (value1 == "No Rating")
+            'No Rating<br><div style="background-color:#ff0000;">FIRE BAN</div>'
+          else if (value1 == "Moderate")
+            '<div style="background-color:#64bf30;">Moderate</div><div style="background-color:#ff0000;">FIRE BAN</div>'
+          else if (value1 == "High")
+            '<div style="background-color:#fedd3a;">High</div><div style="background-color:#ff0000;">FIRE BAN</div>'
+          else if (value1 == "Extreme")
+            '<div style="background-color:#f78100;">Extreme</div><div style="background-color:#ff0000;">FIRE BAN</div>'
+          else if (value1 == "Catastrophic")
+            '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div><div style="background-color:#ff0000;">FIRE BAN</div>'
+          else value1
+        else if (value2 == "No")
+          if (value1 == "No Rating")
+            "No Rating"
+          else if (value1 == "Moderate")
+            '<div style="background-color:#64bf30;">Moderate</div>'
+          else if (value1 == "High")
+            '<div style="background-color:#fedd3a;">High</div>'
+          else if (value1 == "Extreme")
+            '<div style="background-color:#f78100;">Extreme</div>'
+          else if (value1 == "Catastrophic")
+            '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div>'
+          else x
+        else x
+    - data: day_2_fbi
+      name: ""
+      align: center
+    - data: day_3_rating, day_3_fireban
+      name: ${DAY3_DATE}
+      align: center
+      multi_delimiter: ","
+      modify: |-
+        var value1=String(x.split(',')[0]);
+        var value2=String(x.split(',')[1]);
+        if (value2 == "Yes")
+          if (value1 == "No Rating")
+            'No Rating<br><div style="background-color:#ff0000;">FIRE BAN</div>'
+          else if (value1 == "Moderate")
+            '<div style="background-color:#64bf30;">Moderate</div><div style="background-color:#ff0000;">FIRE BAN</div>'
+          else if (value1 == "High")
+            '<div style="background-color:#fedd3a;">High</div><div style="background-color:#ff0000;">FIRE BAN</div>'
+          else if (value1 == "Extreme")
+            '<div style="background-color:#f78100;">Extreme</div><div style="background-color:#ff0000;">FIRE BAN</div>'
+          else if (value1 == "Catastrophic")
+            '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div><div style="background-color:#ff0000;">FIRE BAN</div>'
+          else value1
+        else if (value2 == "No")
+          if (value1 == "No Rating")
+            "No Rating"
+          else if (value1 == "Moderate")
+            '<div style="background-color:#64bf30;">Moderate</div>'
+          else if (value1 == "High")
+            '<div style="background-color:#fedd3a;">High</div>'
+          else if (value1 == "Extreme")
+            '<div style="background-color:#f78100;">Extreme</div>'
+          else if (value1 == "Catastrophic")
+            '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div>'
+          else x
+        else x
+    - data: day_3_fbi
+      name: ""
+      align: center
+    - data: day_4_rating, day_4_fireban
+      name: ${DAY4_DATE}
+      align: center
+      multi_delimiter: ","
+      modify: |-
+        var value1=String(x.split(',')[0]);
+        var value2=String(x.split(',')[1]);
+        if (value2 == "Yes")
+          if (value1 == "No Rating")
+            'No Rating<br><div style="background-color:#ff0000;">FIRE BAN</div>'
+          else if (value1 == "Moderate")
+            '<div style="background-color:#64bf30;">Moderate</div><div style="background-color:#ff0000;">FIRE BAN</div>'
+          else if (value1 == "High")
+            '<div style="background-color:#fedd3a;">High</div><div style="background-color:#ff0000;">FIRE BAN</div>'
+          else if (value1 == "Extreme")
+            '<div style="background-color:#f78100;">Extreme</div><div style="background-color:#ff0000;">FIRE BAN</div>'
+          else if (value1 == "Catastrophic")
+            '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div><div style="background-color:#ff0000;">FIRE BAN</div>'
+          else value1
+        else if (value2 == "No")
+          if (value1 == "No Rating")
+            "No Rating"
+          else if (value1 == "Moderate")
+            '<div style="background-color:#64bf30;">Moderate</div>'
+          else if (value1 == "High")
+            '<div style="background-color:#fedd3a;">High</div>'
+          else if (value1 == "Extreme")
+            '<div style="background-color:#f78100;">Extreme</div>'
+          else if (value1 == "Catastrophic")
+            '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div>'
+          else x
+        else x
+    - data: day_4_fbi
       name: ""
       align: center
 grid_options:
