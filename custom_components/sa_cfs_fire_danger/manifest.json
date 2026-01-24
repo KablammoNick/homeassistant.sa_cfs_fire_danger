@@ -8,5 +8,5 @@
   "icon": "mdi:fire-alert",
   "iot_class": "cloud_polling",
   "requirements": ["aiohttp"],
-  "version": "0.1.1-alpha"
+  "version": "v0.1.2"
 }
