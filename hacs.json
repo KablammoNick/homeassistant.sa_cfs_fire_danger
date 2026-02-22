@@ -1,4 +1,5 @@
-
 {
-  "name": "SA CFS Fire Danger"
+  "name": "SA CFS Fire Danger",
+  "content_in_root": false,
+  "render_readme": true
 }

@@ -14,8 +14,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = entry
 
-    # --- THIS IS THE NEW, ASYNCHRONOUS METHOD ---
-    # Register a static path to serve the images and the card JS.
+    # 1. Register the static path FIRST.
+    # This maps the physical /www folder to the virtual /hacsfiles/sa_cfs_fire_danger/ URL.
+    # This is required for BOTH the .js card and the .svg/.png images.
     await hass.http.async_register_static_paths(
         [
             StaticPathConfig(
@@ -26,9 +27,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         ]
     )
 
-    # Use the new method to register the custom card's JavaScript file.
+    # 2. Tell the frontend to load the card.
+    # Now that the path above exists, the browser can actually find this file.
     add_extra_js_url(hass, f"/hacsfiles/{DOMAIN}/sa-cfs-fire-danger-card.js")
 
+    # 3. Standard platform setup
     entry.async_on_unload(entry.add_update_listener(update_listener))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
