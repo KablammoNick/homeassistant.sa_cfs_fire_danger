@@ -126,6 +126,8 @@ Shows today's rating as a gauge, in one of three styles, with an optional fire b
 
 <img width="868" alt="Gauge card in its three styles" src="docs/gauge-card.png" />
 
+Card picker name: "SA CFS Fire Danger Gauge Card".
+
 ```yaml
 type: custom:sa-cfs-fire-danger-card
 entity: sensor.sa_cfs_flinders_fire_danger_rating
@@ -148,6 +150,8 @@ Card picker name: "SA CFS Fire Danger District Forecast".
 type: custom:sa-cfs-fire-danger-district-card
 entity: sensor.sa_cfs_flinders_fire_danger_rating
 days: 4                 # 1-5
+today_tomorrow: false   # true = first two rows say Today / Tomorrow instead of day names
+day_names: long         # long = Monday, short = Mon
 show_title: true
 # title: Flinders       # optional; defaults to "<District> District"
 show_dates: true        # dd/mm under each day name
@@ -173,6 +177,8 @@ Card picker name: "SA CFS Fire Danger Table".
 type: custom:sa-cfs-fire-danger-table-card
 title: SA CFS Fire Danger Ratings
 days: 4                    # 1-5
+today_tomorrow: true       # false = day names for every column
+day_names: short           # short = Mon, long = Monday (narrow columns always use Mon)
 show_fbi: true             # FBI under each rating
 show_dates: true           # dd/mm under each day heading
 show_footer: true          # "Issued ..." footer
