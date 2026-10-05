@@ -63,7 +63,7 @@ def _remove_stale_entries(
     hass: HomeAssistant, entry: ConfigEntry, selected: list[str]
 ) -> None:
     """Remove entities and devices for deselected districts and old (pre-0.2) sensors."""
-    expected_ids = {f"{DOMAIN}_issued"} | {
+    expected_ids = {f"{DOMAIN}_summary"} | {
         f"{DOMAIN}_{key}_{suffix}" for key in selected for suffix in DISTRICT_ENTITY_SUFFIXES
     }
     ent_reg = er.async_get(hass)

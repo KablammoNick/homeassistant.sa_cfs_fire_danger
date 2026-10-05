@@ -21,7 +21,7 @@ v0.1.3 adds a custom card for the single gauge.
 > **v0.2.0 is a breaking change.** Entity IDs and attributes have changed (see below). Old `sensor.sa_cfs_<district>` entities are removed automatically; update your dashboards and automations.
 
 ## Data Refresh
-The CFS feed is fetched every 60 minutes. `sensor.sa_cfs_fire_danger_issued` shows when the CFS issued the current forecast.
+The CFS feed is fetched every 60 minutes. `sensor.sa_cfs_fire_danger_summary` shows when the CFS issued the current forecast.
 
 Days always follow the **South Australian local date**: `day_1` is today in Adelaide, `day_2` is tomorrow, and so on. If the feed has more than one forecast period for the same date, the latest one is used. If the feed has no forecast for a date (it usually covers about 4–5 days), that day's attributes are empty (`null`). Later days are not shifted forward to fill the gap.
 
@@ -53,7 +53,7 @@ The AFDRS has 5 levels of rating. Each has a numeric `level`, so automations can
 | Extreme | 3 |
 | Catastrophic | 4 |
 
-## Summary sensor: `sensor.sa_cfs_fire_danger_issued`
+## Summary sensor: `sensor.sa_cfs_fire_danger_summary`
 Always created. Its state is the time the CFS issued the forecast, as a timestamp, so HA shows it in your local format.
 
 | Attribute | Example | Comments |
@@ -103,11 +103,12 @@ Template examples:
 ### Upgrading from v0.1.x
 | Old | New |
 | :-- | :-- |
-| `sensor.sa_cfs_fire_danger` (state "HH:MM dd/mm/YYYY") | `sensor.sa_cfs_fire_danger_issued` (timestamp) |
+| `sensor.sa_cfs_fire_danger` (state "HH:MM dd/mm/YYYY") | `sensor.sa_cfs_fire_danger_summary` (timestamp) |
 | `<district>_rating` / `_fbi` / `_fireban` on the summary | `districts.<district>.rating` / `.fbi` / `.fire_ban` |
 | `sensor.sa_cfs_<district>` | `sensor.sa_cfs_<district>_fire_danger_rating` |
 | `day_N_fireban` = "Yes"/"No" | `day_N_fire_ban` = true/false |
 | `day_N_name` / `day_N_date` on district sensors | Use the summary sensor's `day_N_name` / `day_N_date` |
+| `sensor.sa_cfs_fire_danger_issued` (v0.2.0/0.2.1) | `sensor.sa_cfs_fire_danger_summary` (from v0.2.2) |
 | Template binary sensor for today's fire ban | `binary_sensor.sa_cfs_<district>_total_fire_ban_today` |
 
 ## Usage/Examples
@@ -118,22 +119,31 @@ A custom card with a GUI editor shows the gauge, with an optional fire ban overl
 <img width="931" height="524" alt="image" src="https://github.com/user-attachments/assets/f229acb1-8dc7-400f-b77d-d7f831098f64" />
 
 ### Forecast Table Card
-A built-in table card shows a multi-day forecast for several districts. You don't need any other custom cards for it. Each cell shows the rating colour, the FBI, and a **TOTAL FIRE BAN** banner when there is one. The column headings come from the integration, so they always match the data. Click a district name to open its details.
+A built-in table card shows a multi-day forecast for several districts. You don't need any other custom cards for it. Each cell shows the rating colour, the FBI, and a fire ban notice when there is one. The column headings come from the integration, so they always match the data. Click a district name to open its details.
+
+All day columns are the same width. In narrow columns, text shrinks to fit, "TOTAL FIRE BAN" becomes "FIRE BAN" and "Tomorrow" becomes "Tmrw".
 
 <img width="640" alt="Forecast table card" src="docs/table-card.png" />
 
-Add it from the card picker ("SA CFS Fire Danger Table") or in YAML:
+Add it from the card picker ("SA CFS Fire Danger Table"). Every option below can be set in the card's visual editor, or in YAML:
 
 ```yaml
 type: custom:sa-cfs-fire-danger-table-card
 title: SA CFS Fire Danger Ratings
-days: 4              # 1-5, default 4
-show_fbi: true       # default true
-show_fire_ban: true  # default true
-# entities:          # optional; defaults to every district you selected, sorted by name
+days: 4                    # 1-5
+show_fbi: true             # FBI under each rating
+show_dates: true           # dd/mm under each day heading
+show_footer: true          # "Issued ..." footer
+show_fire_ban: true        # show total fire bans
+fire_ban_display: banner   # banner = red banner below the rating
+                           # flash  = the rating and FIRE BAN alternate in the same box
+flash_interval: 1          # seconds each is shown when fire_ban_display is flash
+# entities:                # optional; defaults to every district you selected, sorted by name
 #   - sensor.sa_cfs_flinders_fire_danger_rating
 #   - sensor.sa_cfs_mount_lofty_ranges_fire_danger_rating
 ```
+
+The values shown are the defaults.
 
 ### Picture Entity
 A picture entity card can show the coloured wheel. Three SVG gauge styles are included, or you can use your own.
@@ -206,10 +216,10 @@ Needs [multiple-entity-row](https://github.com/benct/lovelace-multiple-entity-ro
 ```yaml
 type: custom:config-template-card
 variables:
-  DAY1_NAME: states['sensor.sa_cfs_fire_danger_issued'].attributes.day_1_name
-  DAY2_NAME: states['sensor.sa_cfs_fire_danger_issued'].attributes.day_2_name
-  DAY3_NAME: states['sensor.sa_cfs_fire_danger_issued'].attributes.day_3_name
-  DAY4_NAME: states['sensor.sa_cfs_fire_danger_issued'].attributes.day_4_name
+  DAY1_NAME: states['sensor.sa_cfs_fire_danger_summary'].attributes.day_1_name
+  DAY2_NAME: states['sensor.sa_cfs_fire_danger_summary'].attributes.day_2_name
+  DAY3_NAME: states['sensor.sa_cfs_fire_danger_summary'].attributes.day_3_name
+  DAY4_NAME: states['sensor.sa_cfs_fire_danger_summary'].attributes.day_4_name
 entities:
   - sensor.sa_cfs_flinders_fire_danger_rating
 card:
@@ -274,10 +284,10 @@ The colour logic is written once as a YAML anchor (`&rating_cell`) and reused fo
 ```yaml
 type: custom:config-template-card
 variables:
-  DAY3_DATE: states['sensor.sa_cfs_fire_danger_issued'].attributes.day_3_date
-  DAY4_DATE: states['sensor.sa_cfs_fire_danger_issued'].attributes.day_4_date
+  DAY3_DATE: states['sensor.sa_cfs_fire_danger_summary'].attributes.day_3_date
+  DAY4_DATE: states['sensor.sa_cfs_fire_danger_summary'].attributes.day_4_date
 entities:
-  - sensor.sa_cfs_fire_danger_issued
+  - sensor.sa_cfs_fire_danger_summary
 card:
   type: custom:flex-table-card
   title: SA CFS Fire Danger Ratings

@@ -214,8 +214,18 @@ window.customCards.push({
 });
 
 const INTEGRATION = "sa_cfs_fire_danger";
-const ISSUED_ENTITY = "sensor.sa_cfs_fire_danger_issued";
+const SUMMARY_ENTITY = "sensor.sa_cfs_fire_danger_summary";
 const MAX_DAYS = 5;
+
+const TABLE_DEFAULTS = {
+  days: 4,
+  show_fbi: true,
+  show_fire_ban: true,
+  fire_ban_display: "banner",
+  flash_interval: 1,
+  show_dates: true,
+  show_footer: true,
+};
 
 const RATING_STYLES = {
   "No Rating": { background: "transparent", color: "var(--primary-text-color)" },
@@ -240,8 +250,8 @@ class SaCfsFireDangerTableCardEditor extends LitElement {
     this._config = { ...config };
   }
 
-  _schema() {
-    return [
+  _schema(data) {
+    const schema = [
       { name: "title", selector: { text: {} } },
       {
         name: "entities",
@@ -257,8 +267,34 @@ class SaCfsFireDangerTableCardEditor extends LitElement {
         selector: { number: { min: 1, max: MAX_DAYS, mode: "slider" } },
       },
       { name: "show_fbi", selector: { boolean: {} } },
+      { name: "show_dates", selector: { boolean: {} } },
+      { name: "show_footer", selector: { boolean: {} } },
       { name: "show_fire_ban", selector: { boolean: {} } },
     ];
+
+    if (data.show_fire_ban) {
+      schema.push({
+        name: "fire_ban_display",
+        selector: {
+          select: {
+            mode: "dropdown",
+            options: [
+              { value: "banner", label: "Banner below the rating" },
+              { value: "flash", label: "Alternate with the rating" },
+            ],
+          },
+        },
+      });
+      if (data.fire_ban_display === "flash") {
+        schema.push({
+          name: "flash_interval",
+          selector: {
+            number: { min: 0.25, max: 5, step: 0.25, mode: "box", unit_of_measurement: "s" },
+          },
+        });
+      }
+    }
+    return schema;
   }
 
   _computeLabel(schema) {
@@ -267,7 +303,11 @@ class SaCfsFireDangerTableCardEditor extends LitElement {
       entities: "Districts (leave empty for all)",
       days: "Days to show",
       show_fbi: "Show fire behaviour index",
+      show_dates: "Show dates in headings",
+      show_footer: "Show issued time footer",
       show_fire_ban: "Show total fire bans",
+      fire_ban_display: "Fire ban display",
+      flash_interval: "Alternate every",
     }[schema.name];
   }
 
@@ -284,11 +324,12 @@ class SaCfsFireDangerTableCardEditor extends LitElement {
   render() {
     if (!this.hass || !this._config) return html``;
 
+    const data = { ...TABLE_DEFAULTS, ...this._config };
     return html`
       <ha-form
         .hass=${this.hass}
-        .data=${{ days: 4, show_fbi: true, show_fire_ban: true, ...this._config }}
-        .schema=${this._schema()}
+        .data=${data}
+        .schema=${this._schema(data)}
         .computeLabel=${this._computeLabel}
         @value-changed=${this._valueChanged}
       ></ha-form>
@@ -314,18 +355,25 @@ class SaCfsFireDangerTableCard extends LitElement {
   }
 
   static getStubConfig() {
-    return { title: "SA CFS Fire Danger Ratings", days: 4 };
+    return { title: "SA CFS Fire Danger Ratings", days: TABLE_DEFAULTS.days };
   }
 
   setConfig(config) {
-    const days = Number(config.days ?? 4);
+    const days = Number(config.days ?? TABLE_DEFAULTS.days);
     if (!Number.isInteger(days) || days < 1 || days > MAX_DAYS) {
       throw new Error(`days must be between 1 and ${MAX_DAYS}`);
+    }
+    const flashInterval = Number(config.flash_interval ?? TABLE_DEFAULTS.flash_interval);
+    if (!(flashInterval > 0)) {
+      throw new Error("flash_interval must be a positive number of seconds");
+    }
+    if (config.fire_ban_display && !["banner", "flash"].includes(config.fire_ban_display)) {
+      throw new Error("fire_ban_display must be banner or flash");
     }
     if (config.entities && !Array.isArray(config.entities)) {
       throw new Error("entities must be a list");
     }
-    this.config = { show_fbi: true, show_fire_ban: true, ...config, days };
+    this.config = { ...TABLE_DEFAULTS, ...config, days, flash_interval: flashInterval };
   }
 
   _entityIds() {
@@ -354,19 +402,20 @@ class SaCfsFireDangerTableCard extends LitElement {
 
   _headings() {
     // Prefer the integration's own day labels so headings always match the data.
-    const issued = this.hass.states[ISSUED_ENTITY];
+    const summary = this.hass.states[SUMMARY_ENTITY];
     const headings = [];
     for (let day = 1; day <= this.config.days; day++) {
       let label;
+      let short;
       if (day === 1) label = "Today";
-      else if (day === 2) label = "Tomorrow";
-      else if (issued?.attributes[`day_${day}_name`]) {
-        label = issued.attributes[`day_${day}_name`].slice(0, 3);
+      else if (day === 2) [label, short] = ["Tomorrow", "Tmrw"];
+      else if (summary?.attributes[`day_${day}_name`]) {
+        label = summary.attributes[`day_${day}_name`].slice(0, 3);
       } else {
         label = `Day ${day}`;
       }
-      const date = issued?.attributes[`day_${day}_date`];
-      headings.push({ label, date });
+      const date = summary?.attributes[`day_${day}_date`];
+      headings.push({ label, short: short || label, date });
     }
     return headings;
   }
@@ -381,40 +430,57 @@ class SaCfsFireDangerTableCard extends LitElement {
     );
   }
 
+  _renderBan(extraClass = "") {
+    // Both labels are rendered; a container query picks the one that fits.
+    return html`<div class="fire-ban ${extraClass}">
+      <span class="ban-long">TOTAL FIRE BAN</span><span class="ban-short">FIRE BAN</span>
+    </div>`;
+  }
+
   _renderCell(attrs, day) {
     const rating = attrs[`day_${day}_rating`];
     const fbi = attrs[`day_${day}_fbi`];
-    const fireBan = attrs[`day_${day}_fire_ban`] === true;
+    const fireBan = this.config.show_fire_ban && attrs[`day_${day}_fire_ban`] === true;
 
     if (rating === null || rating === undefined) {
-      return html`<td class="cell empty">–</td>`;
+      return html`<td class="cell"><div class="inner empty">–</div></td>`;
     }
 
     const style = RATING_STYLES[rating] || RATING_STYLES["No Rating"];
+    const ratingBox = html`<div
+      class="rating ${rating === "No Rating" ? "no-rating" : ""}"
+      style="background:${style.background};color:${style.color}"
+      title=${rating}
+    >
+      ${rating}
+    </div>`;
+    const flash = fireBan && this.config.fire_ban_display === "flash";
+
     return html`
       <td class="cell">
-        <div
-          class="rating ${rating === "No Rating" ? "no-rating" : ""}"
-          style="background:${style.background};color:${style.color}"
-        >
-          ${rating}
+        <div class="inner">
+          ${flash
+            ? html`<div class="flash">
+                <div class="flash-rating">${ratingBox}</div>
+                ${this._renderBan("flash-ban")}
+              </div>`
+            : ratingBox}
+          ${this.config.show_fbi && fbi !== null && fbi !== undefined
+            ? html`<div class="fbi" title="Fire behaviour index">FBI ${fbi}</div>`
+            : ""}
+          ${fireBan && !flash ? this._renderBan() : ""}
         </div>
-        ${this.config.show_fbi && fbi !== null && fbi !== undefined
-          ? html`<div class="fbi" title="Fire behaviour index">FBI ${fbi}</div>`
-          : ""}
-        ${this.config.show_fire_ban && fireBan
-          ? html`<div class="fire-ban">TOTAL FIRE BAN</div>`
-          : ""}
       </td>
     `;
   }
 
-  _renderIssued() {
-    const issued = this.hass.states[ISSUED_ENTITY];
-    if (!issued || !issued.state || ["unknown", "unavailable"].includes(issued.state)) {
+  _renderFooter() {
+    if (!this.config.show_footer) return "";
+    const summary = this.hass.states[SUMMARY_ENTITY];
+    if (!summary || !summary.state || ["unknown", "unavailable"].includes(summary.state)) {
       return "";
     }
-    const when = new Date(issued.state);
+    const when = new Date(summary.state);
     if (isNaN(when)) return "";
     const formatted = when.toLocaleString(this.hass.locale?.language || undefined, {
       weekday: "short",
@@ -424,7 +490,7 @@ class SaCfsFireDangerTableCard extends LitElement {
       minute: "2-digit",
       timeZone: this.hass.config?.time_zone || undefined,
     });
-    return html`<div class="issued">Issued ${formatted}</div>`;
+    return html`<div class="footer">Issued ${formatted}</div>`;
   }
 
   render() {
@@ -435,44 +501,54 @@ class SaCfsFireDangerTableCard extends LitElement {
 
     return html`
       <ha-card .header=${this.config.title}>
-        <div class="card-content">
+        <div
+          class="card-content"
+          style="--flash-period:${this.config.flash_interval * 2}s"
+        >
           ${entityIds.length === 0
             ? html`<div class="none">
                 No SA CFS district sensors found. Select districts in the integration options.
               </div>`
             : html`
-                <div class="scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th class="district">District</th>
-                        ${headings.map(
-                          (h) => html`<th>
-                            <div>${h.label}</div>
-                            ${h.date ? html`<div class="date">${h.date}</div>` : ""}
-                          </th>`
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      ${entityIds.map((id) => {
-                        const stateObj = this.hass.states[id];
-                        return html`
-                          <tr>
-                            <td class="district" @click=${() => this._moreInfo(id)}>
-                              ${this._districtName(stateObj)}
-                            </td>
-                            ${headings.map((_, i) =>
-                              this._renderCell(stateObj.attributes, i + 1)
-                            )}
-                          </tr>
-                        `;
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <table>
+                  <colgroup>
+                    <col class="district-col" />
+                    ${headings.map(() => html`<col />`)}
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th class="district">District</th>
+                      ${headings.map(
+                        (h) => html`<th>
+                          <div class="head">
+                            <span class="label-long">${h.label}</span
+                            ><span class="label-short">${h.short}</span>
+                          </div>
+                          ${this.config.show_dates && h.date
+                            ? html`<div class="date">${h.date}</div>`
+                            : ""}
+                        </th>`
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${entityIds.map((id) => {
+                      const stateObj = this.hass.states[id];
+                      return html`
+                        <tr>
+                          <td class="district" @click=${() => this._moreInfo(id)}>
+                            ${this._districtName(stateObj)}
+                          </td>
+                          ${headings.map((_, i) =>
+                            this._renderCell(stateObj.attributes, i + 1)
+                          )}
+                        </tr>
+                      `;
+                    })}
+                  </tbody>
+                </table>
               `}
-          ${this._renderIssued()}
+          ${this._renderFooter()}
         </div>
       </ha-card>
     `;
@@ -480,19 +556,23 @@ class SaCfsFireDangerTableCard extends LitElement {
 
   static get styles() {
     return css`
-      .scroll {
-        overflow-x: auto;
-      }
-
       table {
         width: 100%;
         border-collapse: collapse;
+        /* Fixed layout gives every day column the same width. */
+        table-layout: fixed;
+      }
+
+      .district-col {
+        width: 28%;
       }
 
       th {
         font-weight: 500;
-        padding: 4px;
+        padding: 4px 2px;
         text-align: center;
+        overflow: hidden;
+        text-overflow: ellipsis;
         white-space: nowrap;
       }
 
@@ -503,7 +583,7 @@ class SaCfsFireDangerTableCard extends LitElement {
       }
 
       td {
-        padding: 4px;
+        padding: 4px 2px;
         border-top: 1px solid var(--divider-color);
       }
 
@@ -514,32 +594,58 @@ class SaCfsFireDangerTableCard extends LitElement {
       td.district {
         cursor: pointer;
         font-weight: 500;
+        overflow-wrap: anywhere;
       }
 
       .cell {
         text-align: center;
         vertical-align: top;
-        min-width: 84px;
       }
 
-      .cell.empty {
+      .inner,
+      .head {
+        container-type: inline-size;
+      }
+
+      .label-short {
+        display: none;
+      }
+
+      @container (max-width: 70px) {
+        .label-long {
+          display: none;
+        }
+        .label-short {
+          display: inline;
+        }
+      }
+
+      .inner.empty {
         color: var(--secondary-text-color);
-        vertical-align: middle;
       }
 
-      .rating {
+      .rating,
+      .fire-ban {
         border-radius: 4px;
-        padding: 2px 4px;
-        font-weight: 500;
+        padding: 2px;
         white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* Text scales with the column so "Catastrophic" fits; ellipsis only below the floor size. */
+      .rating {
+        font-weight: 500;
+        font-size: clamp(9px, 14cqi, 1em);
       }
 
       .rating.no-rating {
         border: 1px solid var(--divider-color);
+        padding: 1px;
       }
 
       .fbi {
-        font-size: 0.8em;
+        font-size: clamp(8px, 14cqi, 0.8em);
         color: var(--secondary-text-color);
         margin-top: 2px;
       }
@@ -547,15 +653,68 @@ class SaCfsFireDangerTableCard extends LitElement {
       .fire-ban {
         background: #ff0000;
         color: #ffffff;
-        border-radius: 4px;
-        font-size: 0.75em;
+        font-size: clamp(8px, 15cqi, 0.75em);
         font-weight: 700;
         margin-top: 2px;
-        padding: 1px 2px;
-        white-space: nowrap;
       }
 
-      .issued {
+      .ban-short {
+        display: none;
+      }
+
+      @container (max-width: 100px) {
+        .ban-long {
+          display: none;
+        }
+        .ban-short {
+          display: inline;
+        }
+      }
+
+
+
+      /* Flash mode: the rating and the fire ban share one slot and alternate. */
+      .flash {
+        display: grid;
+      }
+
+      .flash > * {
+        grid-area: 1 / 1;
+      }
+
+      .flash .flash-ban {
+        margin-top: 0;
+        font-size: clamp(8px, 14cqi, 0.9em);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: sa-cfs-flash-second var(--flash-period, 2s) step-end infinite;
+      }
+
+      .flash .flash-rating {
+        animation: sa-cfs-flash-first var(--flash-period, 2s) step-end infinite;
+      }
+
+      /* Rating shows for the first half of each period, the fire ban for the second. */
+      @keyframes sa-cfs-flash-first {
+        0% {
+          visibility: visible;
+        }
+        50% {
+          visibility: hidden;
+        }
+      }
+
+      @keyframes sa-cfs-flash-second {
+        0% {
+          visibility: hidden;
+        }
+        50% {
+          visibility: visible;
+        }
+      }
+
+      .footer {
         margin-top: 8px;
         font-size: 0.8em;
         color: var(--secondary-text-color);

@@ -45,8 +45,8 @@ async def test_district_entities(hass: HomeAssistant, entry):
     assert hass.states.get("sensor.sa_cfs_mount_lofty_ranges_fire_danger_rating") is None
 
 
-async def test_issued_sensor(hass: HomeAssistant, entry):
-    issued = hass.states.get("sensor.sa_cfs_fire_danger_issued")
+async def test_summary_sensor(hass: HomeAssistant, entry):
+    issued = hass.states.get("sensor.sa_cfs_fire_danger_summary")
     assert issued.state == "2026-10-04T05:30:00+00:00"
     assert issued.attributes["day_1_name"] == "Monday"
     assert issued.attributes["day_1_date"] == "05/10"
@@ -77,7 +77,12 @@ async def test_old_entities_removed(hass: HomeAssistant, aioclient_mock, feed_xm
     old = ent_reg.async_get_or_create(
         "sensor", DOMAIN, f"{DOMAIN}_flinders", config_entry=entry
     )
+    old_issued = ent_reg.async_get_or_create(
+        "sensor", DOMAIN, f"{DOMAIN}_issued", config_entry=entry
+    )
 
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     assert ent_reg.async_get(old.entity_id) is None
+    assert ent_reg.async_get(old_issued.entity_id) is None
+    assert hass.states.get("sensor.sa_cfs_fire_danger_summary") is not None
