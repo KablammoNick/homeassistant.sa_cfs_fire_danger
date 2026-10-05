@@ -6,8 +6,8 @@ import { LitElement, html, css } from "https://unpkg.com/lit-element@2.0.1/lit-e
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "sa-cfs-fire-danger-card",
-  name: "SA CFS Fire Danger Card",
-  description: "Displays the SA CFS Fire Danger Rating with optional fire ban overlay.",
+  name: "SA CFS Fire Danger Gauge Card",
+  description: "Today's fire danger rating for one district as a gauge, with an optional fire ban overlay.",
   preview: true,
   configurable: true,
 });
@@ -123,9 +123,14 @@ class SaCfsFireDangerCard extends LitElement {
     return document.createElement("sa-cfs-fire-danger-card-editor");
   }
 
-  static getStubConfig() {
+  static getStubConfig(hass) {
+    // Pick a real district so the card picker can show a preview.
+    const entity =
+      Object.keys(hass?.states || {})
+        .filter((e) => e.startsWith("sensor.sa_cfs_") && e.endsWith("_fire_danger_rating"))
+        .sort()[0] || "";
     return {
-      entity: "",
+      entity,
       image_set: "Gauge 1",
       overlay_fire_ban: false,
       show_title: true,
@@ -185,7 +190,8 @@ class SaCfsFireDangerCard extends LitElement {
       : undefined;
 
     return html`
-      <ha-card .header=${title}>
+      <ha-card>
+        ${title ? html`<div class="title">${title}</div>` : ""}
         <div class="card-container">
           <img src="${baseImageUrl}" class="rating-image" />
           ${overlay}
@@ -196,6 +202,17 @@ class SaCfsFireDangerCard extends LitElement {
 
   static get styles() {
     return css`
+      /* Own title instead of the ha-card header, whose padding leaves a large gap above the gauge. */
+      .title {
+        font-family: var(--ha-card-header-font-family, inherit);
+        font-size: var(--ha-card-header-font-size, 24px);
+        color: var(--ha-card-header-color, var(--primary-text-color));
+        letter-spacing: -0.012em;
+        line-height: 32px;
+        /* Title text lines up with the standard ha-card header used by the other cards. */
+        padding: 20px 16px 4px;
+      }
+
       .card-container {
         position: relative;
         line-height: 0;
@@ -242,6 +259,7 @@ const MAX_DAYS = 5;
 
 const TABLE_DEFAULTS = {
   days: 4,
+  today_tomorrow: true,
   show_fbi: true,
   show_fire_ban: true,
   fire_ban_display: "banner",
@@ -289,6 +307,7 @@ class SaCfsFireDangerTableCardEditor extends LitElement {
         name: "days",
         selector: { number: { min: 1, max: MAX_DAYS, mode: "slider" } },
       },
+      { name: "today_tomorrow", selector: { boolean: {} } },
       { name: "show_fbi", selector: { boolean: {} } },
       { name: "show_dates", selector: { boolean: {} } },
       { name: "show_footer", selector: { boolean: {} } },
@@ -325,6 +344,7 @@ class SaCfsFireDangerTableCardEditor extends LitElement {
       title: "Title",
       entities: "Districts (leave empty for all)",
       days: "Days to show",
+      today_tomorrow: "Label the first two days Today / Tomorrow",
       show_fbi: "Show fire behaviour index",
       show_dates: "Show dates in headings",
       show_footer: "Show issued time footer",
@@ -430,8 +450,8 @@ class SaCfsFireDangerTableCard extends LitElement {
     for (let day = 1; day <= this.config.days; day++) {
       let label;
       let short;
-      if (day === 1) label = "Today";
-      else if (day === 2) [label, short] = ["Tomorrow", "Tmrw"];
+      if (this.config.today_tomorrow && day === 1) label = "Today";
+      else if (this.config.today_tomorrow && day === 2) [label, short] = ["Tomorrow", "Tmrw"];
       else if (summary?.attributes[`day_${day}_name`]) {
         label = summary.attributes[`day_${day}_name`].slice(0, 3);
       } else {
@@ -770,6 +790,7 @@ window.customCards.push({
 
 const DISTRICT_DEFAULTS = {
   days: 4,
+  today_tomorrow: false,
   show_title: true,
   show_dates: true,
   show_fbi: true,
@@ -806,6 +827,7 @@ class SaCfsFireDangerDistrictCardEditor extends LitElement {
         name: "days",
         selector: { number: { min: 1, max: MAX_DAYS, mode: "slider" } },
       },
+      { name: "today_tomorrow", selector: { boolean: {} } },
       { name: "show_dates", selector: { boolean: {} } },
       { name: "show_fbi", selector: { boolean: {} } },
       { name: "show_fire_ban", selector: { boolean: {} } },
@@ -819,6 +841,7 @@ class SaCfsFireDangerDistrictCardEditor extends LitElement {
       show_title: "Show title",
       title: "Title (leave empty for \"<District> District\")",
       days: "Days to show",
+      today_tomorrow: "Label the first two days Today / Tomorrow",
       show_dates: "Show dates",
       show_fbi: "Show fire behaviour index column",
       show_fire_ban: "Show fire ban column",
@@ -878,6 +901,8 @@ class SaCfsFireDangerDistrictCard extends SaCfsFireDangerTableCard {
   }
 
   _dayName(day) {
+    if (this.config.today_tomorrow && day === 1) return "Today";
+    if (this.config.today_tomorrow && day === 2) return "Tomorrow";
     const summary = this.hass.states[SUMMARY_ENTITY];
     return summary?.attributes[`day_${day}_name`] || (day === 1 ? "Today" : `Day ${day}`);
   }
