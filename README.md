@@ -118,6 +118,34 @@ The examples use the Flinders district.
 A custom card with a GUI editor shows the gauge, with an optional fire ban overlay. Pick a `..._fire_danger_rating` entity.
 <img width="931" height="524" alt="image" src="https://github.com/user-attachments/assets/f229acb1-8dc7-400f-b77d-d7f831098f64" />
 
+```yaml
+type: custom:sa-cfs-fire-danger-card
+entity: sensor.sa_cfs_flinders_fire_danger_rating
+image_set: Gauge 1        # Gauge 1 / Gauge 2 / Gauge 3
+overlay_fire_ban: false   # fire ban icon in the corner when there's a total fire ban today
+show_title: true          # card title
+# title: Home             # optional; defaults to the district name
+```
+
+### District Forecast Card
+A built-in card for one district shows one row per day, with the rating, FBI and fire ban. It replaces the config-template-card + multiple-entity-row example below. Day names and dates come from the integration. Click a row to open the district's details.
+
+Add it from the card picker ("SA CFS Fire Danger District Forecast"). Every option can be set in the visual editor, or in YAML:
+
+```yaml
+type: custom:sa-cfs-fire-danger-district-card
+entity: sensor.sa_cfs_flinders_fire_danger_rating
+days: 4                 # 1-5
+show_title: true
+# title: Flinders       # optional; defaults to "<District> District"
+show_dates: true        # dd/mm under each day name
+show_fbi: true          # FBI column
+show_fire_ban: true     # Fire Ban column
+show_footer: true       # "Issued ..." footer
+```
+
+The values shown are the defaults.
+
 ### Forecast Table Card
 A built-in table card shows a multi-day forecast for several districts. You don't need any other custom cards for it. Each cell shows the rating colour, the FBI, and a fire ban notice when there is one. The column headings come from the integration, so they always match the data. Click a district name to open its details.
 
@@ -209,6 +237,8 @@ elements:
 ```
 
 ### Single District Forecast Entity List
+The [District Forecast Card](#district-forecast-card) above does this without any other custom cards. This version is kept for reference.
+
 Needs [multiple-entity-row](https://github.com/benct/lovelace-multiple-entity-row) and [config-template-card](https://github.com/iantrich/config-template-card). config-template-card reads the day names from the summary sensor.
 
 <img width="510" height="299" alt="image" src="https://github.com/user-attachments/assets/32dad367-a4bf-4996-b409-a0a0767faac0" />

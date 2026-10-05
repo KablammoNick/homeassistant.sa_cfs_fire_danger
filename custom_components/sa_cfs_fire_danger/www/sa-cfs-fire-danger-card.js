@@ -63,7 +63,19 @@ class SaCfsFireDangerCardEditor extends LitElement {
         default: false,
         selector: { boolean: {} },
       },
+      { name: "show_title", selector: { boolean: {} } },
+      { name: "title", selector: { text: {} } },
     ];
+  }
+
+  _computeLabel(schema) {
+    return {
+      entity: "District",
+      image_set: "Gauge style",
+      overlay_fire_ban: "Show fire ban overlay",
+      show_title: "Show title",
+      title: "Title (leave empty for the district name)",
+    }[schema.name];
   }
 
   _valueChanged(ev) {
@@ -82,8 +94,9 @@ class SaCfsFireDangerCardEditor extends LitElement {
     return html`
       <ha-form
         .hass=${this.hass}
-        .data=${this._config}
+        .data=${{ show_title: true, ...this._config }}
         .schema=${this._schema(this.hass)}
+        .computeLabel=${this._computeLabel}
         @value-changed=${this._valueChanged}
       ></ha-form>
     `;
@@ -115,6 +128,7 @@ class SaCfsFireDangerCard extends LitElement {
       entity: "",
       image_set: "Gauge 1",
       overlay_fire_ban: false,
+      show_title: true,
     };
   }
 
@@ -126,7 +140,12 @@ class SaCfsFireDangerCard extends LitElement {
   }
 
   render() {
-    const { entity, image_set = "Gauge 1", overlay_fire_ban = false } = this.config;
+    const {
+      entity,
+      image_set = "Gauge 1",
+      overlay_fire_ban = false,
+      show_title = true,
+    } = this.config;
     const state = this.hass.states[entity];
 
     if (!state) {
@@ -161,8 +180,12 @@ class SaCfsFireDangerCard extends LitElement {
         ? html`<img src="/hacsfiles/sa_cfs_fire_danger/fire_ban.svg?v=2" class="fire-ban-overlay" />`
         : "";
 
+    const title = show_title
+      ? this.config.title || state.attributes.district_name || state.attributes.friendly_name
+      : undefined;
+
     return html`
-      <ha-card>
+      <ha-card .header=${title}>
         <div class="card-container">
           <img src="${baseImageUrl}" class="rating-image" />
           ${overlay}
@@ -196,7 +219,7 @@ class SaCfsFireDangerCard extends LitElement {
   }
 
   getCardSize() {
-    return 1;
+    return this.config?.show_title === false ? 1 : 2;
   }
 }
 
@@ -733,3 +756,271 @@ class SaCfsFireDangerTableCard extends LitElement {
 }
 
 customElements.define("sa-cfs-fire-danger-table-card", SaCfsFireDangerTableCard);
+
+/* ===========================================================
+ * SINGLE DISTRICT FORECAST CARD
+ * =========================================================== */
+window.customCards.push({
+  type: "sa-cfs-fire-danger-district-card",
+  name: "SA CFS Fire Danger District Forecast",
+  description: "Day-by-day rating, FBI and total fire ban for one district.",
+  preview: true,
+  configurable: true,
+});
+
+const DISTRICT_DEFAULTS = {
+  days: 4,
+  show_title: true,
+  show_dates: true,
+  show_fbi: true,
+  show_fire_ban: true,
+  show_footer: true,
+};
+
+class SaCfsFireDangerDistrictCardEditor extends LitElement {
+  static get properties() {
+    return {
+      hass: {},
+      _config: {},
+    };
+  }
+
+  setConfig(config) {
+    this._config = { ...config };
+  }
+
+  _schema() {
+    return [
+      {
+        name: "entity",
+        required: true,
+        selector: {
+          entity: {
+            filter: { integration: INTEGRATION, domain: "sensor", device_class: "enum" },
+          },
+        },
+      },
+      { name: "show_title", selector: { boolean: {} } },
+      { name: "title", selector: { text: {} } },
+      {
+        name: "days",
+        selector: { number: { min: 1, max: MAX_DAYS, mode: "slider" } },
+      },
+      { name: "show_dates", selector: { boolean: {} } },
+      { name: "show_fbi", selector: { boolean: {} } },
+      { name: "show_fire_ban", selector: { boolean: {} } },
+      { name: "show_footer", selector: { boolean: {} } },
+    ];
+  }
+
+  _computeLabel(schema) {
+    return {
+      entity: "District",
+      show_title: "Show title",
+      title: "Title (leave empty for \"<District> District\")",
+      days: "Days to show",
+      show_dates: "Show dates",
+      show_fbi: "Show fire behaviour index column",
+      show_fire_ban: "Show fire ban column",
+      show_footer: "Show issued time footer",
+    }[schema.name];
+  }
+
+  _valueChanged(ev) {
+    this.dispatchEvent(
+      new CustomEvent("config-changed", {
+        detail: { config: ev.detail.value },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  render() {
+    if (!this.hass || !this._config) return html``;
+
+    return html`
+      <ha-form
+        .hass=${this.hass}
+        .data=${{ ...DISTRICT_DEFAULTS, ...this._config }}
+        .schema=${this._schema()}
+        .computeLabel=${this._computeLabel}
+        @value-changed=${this._valueChanged}
+      ></ha-form>
+    `;
+  }
+}
+
+customElements.define(
+  "sa-cfs-fire-danger-district-card-editor",
+  SaCfsFireDangerDistrictCardEditor
+);
+
+class SaCfsFireDangerDistrictCard extends SaCfsFireDangerTableCard {
+  static getConfigElement() {
+    return document.createElement("sa-cfs-fire-danger-district-card-editor");
+  }
+
+  static getStubConfig(hass) {
+    const entity = Object.keys(hass?.states || {}).filter(isRatingEntity).sort()[0] || "";
+    return { entity, days: DISTRICT_DEFAULTS.days };
+  }
+
+  setConfig(config) {
+    if (!config.entity) {
+      throw new Error("You must define an entity");
+    }
+    const days = Number(config.days ?? DISTRICT_DEFAULTS.days);
+    if (!Number.isInteger(days) || days < 1 || days > MAX_DAYS) {
+      throw new Error(`days must be between 1 and ${MAX_DAYS}`);
+    }
+    this.config = { ...DISTRICT_DEFAULTS, ...config, days };
+  }
+
+  _dayName(day) {
+    const summary = this.hass.states[SUMMARY_ENTITY];
+    return summary?.attributes[`day_${day}_name`] || (day === 1 ? "Today" : `Day ${day}`);
+  }
+
+  render() {
+    if (!this.hass || !this.config) return html``;
+
+    const stateObj = this.hass.states[this.config.entity];
+    if (!stateObj) {
+      return html`
+        <ha-card>
+          <div class="card-content">Entity not found: ${this.config.entity}</div>
+        </ha-card>
+      `;
+    }
+
+    const attrs = stateObj.attributes;
+    const summary = this.hass.states[SUMMARY_ENTITY];
+    const title = this.config.show_title
+      ? this.config.title || `${this._districtName(stateObj)} District`
+      : undefined;
+    const days = Array.from({ length: this.config.days }, (_, i) => i + 1);
+
+    return html`
+      <ha-card .header=${title}>
+        <div class="card-content">
+          <table class="district-table">
+            <colgroup>
+              <col class="day-col" />
+              <col />
+              ${this.config.show_fbi ? html`<col class="narrow-col" />` : ""}
+              ${this.config.show_fire_ban ? html`<col />` : ""}
+            </colgroup>
+            <thead>
+              <tr>
+                <th class="district">Day</th>
+                <th>Rating</th>
+                ${this.config.show_fbi ? html`<th>FBI</th>` : ""}
+                ${this.config.show_fire_ban ? html`<th>Fire Ban</th>` : ""}
+              </tr>
+            </thead>
+            <tbody>
+              ${days.map((day) => {
+                const rating = attrs[`day_${day}_rating`];
+                const fbi = attrs[`day_${day}_fbi`];
+                const fireBan = attrs[`day_${day}_fire_ban`];
+                const style = RATING_STYLES[rating] || RATING_STYLES["No Rating"];
+                const date = summary?.attributes[`day_${day}_date`];
+                const missing = rating === null || rating === undefined;
+                return html`
+                  <tr @click=${() => this._moreInfo(this.config.entity)}>
+                    <td class="district">
+                      <div>${this._dayName(day)}</div>
+                      ${this.config.show_dates && date
+                        ? html`<div class="date">${date}</div>`
+                        : ""}
+                    </td>
+                    <td class="cell middle">
+                      <div class="inner">
+                        ${missing
+                          ? html`<span class="muted">–</span>`
+                          : html`<div
+                              class="rating ${rating === "No Rating" ? "no-rating" : ""}"
+                              style="background:${style.background};color:${style.color}"
+                              title=${rating}
+                            >
+                              ${rating}
+                            </div>`}
+                      </div>
+                    </td>
+                    ${this.config.show_fbi
+                      ? html`<td class="cell middle">
+                          ${fbi === null || fbi === undefined
+                            ? html`<span class="muted">–</span>`
+                            : fbi}
+                        </td>`
+                      : ""}
+                    ${this.config.show_fire_ban
+                      ? html`<td class="cell middle">
+                          <div class="inner">
+                            ${fireBan === true
+                              ? this._renderBan("in-column")
+                              : html`<span class="muted"
+                                  >${fireBan === false ? "No" : "–"}</span
+                                >`}
+                          </div>
+                        </td>`
+                      : ""}
+                  </tr>
+                `;
+              })}
+            </tbody>
+          </table>
+          ${this._renderFooter()}
+        </div>
+      </ha-card>
+    `;
+  }
+
+  static get styles() {
+    return [
+      super.styles,
+      css`
+        .district-table .day-col {
+          width: 32%;
+        }
+
+        .district-table .narrow-col {
+          width: 16%;
+        }
+
+        .district-table tbody tr {
+          cursor: pointer;
+        }
+
+        .district-table td.district {
+          font-weight: 500;
+        }
+
+        .date {
+          font-size: 0.8em;
+          font-weight: 400;
+          color: var(--secondary-text-color);
+        }
+
+        .middle {
+          vertical-align: middle;
+        }
+
+        .muted {
+          color: var(--secondary-text-color);
+        }
+
+        .fire-ban.in-column {
+          margin-top: 0;
+        }
+      `,
+    ];
+  }
+
+  getCardSize() {
+    return 2 + (this.config?.days || DISTRICT_DEFAULTS.days);
+  }
+}
+
+customElements.define("sa-cfs-fire-danger-district-card", SaCfsFireDangerDistrictCard);
