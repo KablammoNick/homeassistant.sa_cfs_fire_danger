@@ -16,7 +16,8 @@ If you're here, you've probably been sent the link to test for me, or you're ver
 
 ## Installation
 Install as a custom repository in HACS, and the config flow will let you select which districts you want to monitor.
-v0.1.3 adds a custom card for the single gauge.
+
+Three [dashboard cards](#dashboard-cards) come with the integration and load automatically. You don't need to install any other custom cards.
 
 > **v0.2.0 is a breaking change.** Entity IDs and attributes have changed (see below). Old `sensor.sa_cfs_<district>` entities are removed automatically; update your dashboards and automations.
 
@@ -111,12 +112,19 @@ Template examples:
 | `sensor.sa_cfs_fire_danger_issued` (v0.2.0/0.2.1) | `sensor.sa_cfs_fire_danger_summary` (from v0.2.2) |
 | Template binary sensor for today's fire ban | `binary_sensor.sa_cfs_<district>_total_fire_ban_today` |
 
-## Usage/Examples
-The examples use the Flinders district.
+## Dashboard cards
+These cards come with the integration. Add them from the card picker (search for "SA CFS"). Every option can be set in each card's visual editor or in YAML. In the YAML examples below, the values shown are the defaults.
 
-### Custom Card
-A custom card with a GUI editor shows the gauge, with an optional fire ban overlay. Pick a `..._fire_danger_rating` entity.
-<img width="931" height="524" alt="image" src="https://github.com/user-attachments/assets/f229acb1-8dc7-400f-b77d-d7f831098f64" />
+| Card | Shows |
+| :-- | :-- |
+| [Gauge Card](#gauge-card) | Today's rating for one district as a gauge |
+| [District Forecast Card](#district-forecast-card) | Day-by-day forecast for one district |
+| [Forecast Table Card](#forecast-table-card) | Multi-day forecast for several districts |
+
+### Gauge Card
+Shows today's rating as a gauge, in one of three styles, with an optional fire ban icon when there is a total fire ban today. The title defaults to the district name. You can change it or hide it.
+
+<img width="868" alt="Gauge card in its three styles" src="docs/gauge-card.png" />
 
 ```yaml
 type: custom:sa-cfs-fire-danger-card
@@ -127,10 +135,14 @@ show_title: true          # card title
 # title: Home             # optional; defaults to the district name
 ```
 
-### District Forecast Card
-A built-in card for one district shows one row per day, with the rating, FBI and fire ban. It replaces the config-template-card + multiple-entity-row example below. Day names and dates come from the integration. Click a row to open the district's details.
+The examples above show Gauge 1 with the fire ban icon, Gauge 2, and Gauge 3 with a custom title.
 
-Add it from the card picker ("SA CFS Fire Danger District Forecast"). Every option can be set in the visual editor, or in YAML:
+### District Forecast Card
+Shows one district with one row per day: the rating, FBI and fire ban. Day names and dates come from the integration, so they always match the data. Click a row to open the district's details.
+
+<img width="456" alt="District forecast card" src="docs/district-card.png" />
+
+Card picker name: "SA CFS Fire Danger District Forecast".
 
 ```yaml
 type: custom:sa-cfs-fire-danger-district-card
@@ -144,16 +156,18 @@ show_fire_ban: true     # Fire Ban column
 show_footer: true       # "Issued ..." footer
 ```
 
-The values shown are the defaults.
-
 ### Forecast Table Card
-A built-in table card shows a multi-day forecast for several districts. You don't need any other custom cards for it. Each cell shows the rating colour, the FBI, and a fire ban notice when there is one. The column headings come from the integration, so they always match the data. Click a district name to open its details.
+Shows several districts over several days. Each cell shows the rating colour, the FBI, and a fire ban notice when there is one. The column headings come from the integration, so they always match the data. Click a district name to open its details.
 
 All day columns are the same width. In narrow columns, text shrinks to fit, "TOTAL FIRE BAN" becomes "FIRE BAN" and "Tomorrow" becomes "Tmrw".
 
-<img width="640" alt="Forecast table card" src="docs/table-card.png" />
+<img width="656" alt="Forecast table card with fire ban banners" src="docs/table-card.png" />
 
-Add it from the card picker ("SA CFS Fire Danger Table"). Every option below can be set in the card's visual editor, or in YAML:
+With `fire_ban_display: flash`, the rating and the fire ban take turns in the same box:
+
+<img width="656" alt="Forecast table card with flashing fire bans" src="docs/table-card-flash.gif" />
+
+Card picker name: "SA CFS Fire Danger Table".
 
 ```yaml
 type: custom:sa-cfs-fire-danger-table-card
@@ -171,7 +185,8 @@ flash_interval: 1          # seconds each is shown when fire_ban_display is flas
 #   - sensor.sa_cfs_mount_lofty_ranges_fire_danger_rating
 ```
 
-The values shown are the defaults.
+## Other dashboard examples
+You can also build displays from the sensors with standard and third-party cards. These examples use the Flinders district.
 
 ### Picture Entity
 A picture entity card can show the coloured wheel. Three SVG gauge styles are included, or you can use your own.
