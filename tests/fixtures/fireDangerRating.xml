@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<product>
+  <updated>2026-10-04T16:00:00+10:30</updated>
+  <forecast>
+    <area type="fire-district" description="Flinders">
+      <forecast-period start-time-local="2026-10-04T00:00:00+09:30">
+        <text type="fire_danger">Moderate</text>
+        <text type="fbi">12</text>
+        <text type="fire_ban">false</text>
+      </forecast-period>
+      <forecast-period start-time-local="2026-10-05T00:00:00+10:30">
+        <text type="fire_danger">Moderate</text>
+        <text type="fbi">18</text>
+        <text type="fire_ban">false</text>
+      </forecast-period>
+      <forecast-period start-time-local="2026-10-05T12:00:00+10:30">
+        <text type="fire_danger">High</text>
+        <text type="fbi">30</text>
+        <text type="fire_ban">true</text>
+      </forecast-period>
+      <forecast-period start-time-local="2026-10-06T00:00:00+10:30">
+        <text type="fire_danger">Extreme</text>
+        <text type="fbi">55</text>
+        <text type="fire_ban">true</text>
+      </forecast-period>
+      <forecast-period start-time-local="2026-10-07T00:00:00+10:30">
+        <text type="fire_danger">No Rating</text>
+        <text type="fbi">5</text>
+        <text type="fire_ban">false</text>
+      </forecast-period>
+    </area>
+    <area type="fire-district" description="Mount Lofty Ranges">
+      <forecast-period start-time-local="2026-10-05T00:00:00+10:30">
+        <text type="fire_danger">CATASTROPHIC</text>
+        <text type="fbi">110</text>
+        <text type="fire_ban">true</text>
+      </forecast-period>
+    </area>
+  </forecast>
+</product>

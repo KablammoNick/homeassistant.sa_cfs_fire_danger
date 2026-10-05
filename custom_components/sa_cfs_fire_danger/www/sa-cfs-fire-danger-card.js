@@ -31,7 +31,7 @@ class SaCfsFireDangerCardEditor extends LitElement {
     if (!hass) return [];
 
     const entityOptions = Object.keys(hass.states)
-      .filter((e) => e.startsWith("sensor.sa_cfs_"))
+      .filter((e) => e.startsWith("sensor.sa_cfs_") && e.endsWith("_fire_danger_rating"))
       .map((e) => ({ value: e, label: e }))
       .sort((a, b) => a.value.localeCompare(b.value));
 
@@ -157,7 +157,7 @@ class SaCfsFireDangerCard extends LitElement {
     const baseImageUrl = `/hacsfiles/sa_cfs_fire_danger/${prefix}${suffix}`;
 
     const overlay =
-      overlay_fire_ban && state.attributes?.day_1_fireban === "Yes"
+      overlay_fire_ban && state.attributes?.day_1_fire_ban === true
         ? html`<img src="/hacsfiles/sa_cfs_fire_danger/fire_ban.svg?v=2" class="fire-ban-overlay" />`
         : "";
 
