@@ -26,7 +26,7 @@ async def async_setup_entry(
     """Set up the sensor platform."""
     coordinator = entry.runtime_data.coordinator
 
-    entities: list[SensorEntity] = [CFSIssuedSensor(coordinator)]
+    entities: list[SensorEntity] = [CFSSummarySensor(coordinator)]
     for key in entry.runtime_data.districts:
         entities.append(CFSRatingSensor(coordinator, key))
         entities.append(CFSFireBehaviourIndexSensor(coordinator, key))
@@ -88,14 +88,14 @@ class CFSFireBehaviourIndexSensor(CFSDistrictEntity, SensorEntity):
         return self.forecast()["fbi"]
 
 
-class CFSIssuedSensor(CoordinatorEntity[CFSDataUpdateCoordinator], SensorEntity):
+class CFSSummarySensor(CoordinatorEntity[CFSDataUpdateCoordinator], SensorEntity):
     """When the feed was issued, plus today's values for every district."""
 
     _attr_has_entity_name = True
-    _attr_name = "Issued"
+    _attr_name = "Summary"
     _attr_icon = "mdi:fire-alert"
     _attr_device_class = SensorDeviceClass.TIMESTAMP
-    _attr_unique_id = f"{DOMAIN}_issued"
+    _attr_unique_id = f"{DOMAIN}_summary"
     _unrecorded_attributes = frozenset({"districts"})
 
     def __init__(self, coordinator: CFSDataUpdateCoordinator) -> None:

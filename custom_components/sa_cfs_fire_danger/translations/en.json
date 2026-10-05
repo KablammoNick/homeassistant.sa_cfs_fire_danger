@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "SA CFS Fire Danger Setup",
-        "description": "Select the fire ban districts to create devices for. Each district gets a fire danger rating sensor, a fire behaviour index sensor, and total fire ban (today/tomorrow) binary sensors.\n\nIf you select none, only `sensor.sa_cfs_fire_danger_issued` is created.",
+        "description": "Select the fire ban districts to create devices for. Each district gets a fire danger rating sensor, a fire behaviour index sensor, and total fire ban (today/tomorrow) binary sensors.\n\nIf you select none, only `sensor.sa_cfs_fire_danger_summary` is created.",
         "data": {
           "districts": "Districts to Monitor"
         }
