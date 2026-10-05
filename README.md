@@ -18,12 +18,12 @@ If you're here, you've probably been sent the link to test for me, or you're ver
 Install as a custom repository in HACS, and the config flow will let you select which districts you want to monitor.
 v0.1.3 adds a custom card for the single gauge.
 
+> **v0.2.0 is a breaking change.** Entity IDs and attributes have changed (see below). Old `sensor.sa_cfs_<district>` entities are removed automatically; update your dashboards and automations.
+
 ## Data Refresh
-At the moment it scrapes the data every 60 mins, and stores the last update time as the status of `sensor.sa_cfs_fire_danger`.
+The CFS feed is fetched every 60 minutes. `sensor.sa_cfs_fire_danger_issued` shows when the CFS issued the current forecast.
 
-Whilst it normally returns 5 days worth of data, for some reason at certain times the CFS XML will have duplicate data for day 1 and 2. The code will cycle through and ignore duplicate data is present, and move days forward - leaving day 5 as N/A sometimes. I had considered whether to just drop day 5 completely but for now it remains.
-
-Still working on when it refreshes officially, as it sometimes has 5 days worth, and other times day 1 is repeated twice.
+Days always follow the **South Australian local date**: `day_1` is today in Adelaide, `day_2` is tomorrow, and so on. If the feed has more than one forecast period for the same date, the latest one is used. If the feed has no forecast for a date (it usually covers about 4–5 days), that day's attributes are empty (`null`). Later days are not shifted forward to fill the gap.
 
 ## CFS Fire Ban Districts
 1. Adelaide Metropolitan
@@ -43,105 +43,102 @@ Still working on when it refreshes officially, as it sometimes has 5 days worth,
 15. West Coast
 
 ## Fire Danger Ratings
-The AFDRS has 5 levels of rating:
-- No Rating
-- Moderate
-- High
-- Extreme
-- Catastrophic
+The AFDRS has 5 levels of rating. Each has a numeric `level`, so automations can compare them (for example `level >= 2` means High or worse):
 
-## Main Sensor
-By default this integration will create a sensor called `sensor.sa_cfs_fire_danger`, with the state of the last update (in hh:mm dd/mm/yyyy format), and the following attributes:
+| Rating | Level |
+| :-- | :-: |
+| No Rating | 0 |
+| Moderate | 1 |
+| High | 2 |
+| Extreme | 3 |
+| Catastrophic | 4 |
 
-| Attribute | Example Data                | Comments | 
-| :-------- | :-------------------------- | :- |
-| `icon`          | mdi:fire-alert ||
-| `friendly_name` | SA CFS Fire Danger ||
-| `district_count`  |  15 | Internal, used when cycling data |
-| `day_1_name` | Saturday| Used for config-template-card variables |
-| `day_1_date` | 04/10| Used for config-template-card variables |
-| `day_2_name` | Sunday| Used for config-template-card variables |
-| `day_2_date` | 05/10| Used for config-template-card variables |
-| `day_3_name` | Monday| Used for config-template-card variables |
-| `day_3_date` | 06/10| Used for config-template-card variables |
-| `day_4_name` | Tuesday| Used for config-template-card variables |
-| `day_4_date` | 07/10| Used for config-template-card variables |
-| `day_5_name` | Wednesday| Used for config-template-card variables |
-| `day_5_date` | 08/10| Used for config-template-card variables |
+## Summary sensor: `sensor.sa_cfs_fire_danger_issued`
+Always created. Its state is the time the CFS issued the forecast, as a timestamp, so HA shows it in your local format.
 
-It then creates three attributes for each of the 15 CFS Fire Danger districts:
-| Attribute | Example Data                | Comments | 
-| :-------- | :-------------------------- | :- |
-| `adelaide_metropolitan_rating` | No Rating||
-| `adelaide_metropolitan_fbi` | 0||
-| `adelaide_metropolitan_fireban` | No||
+| Attribute | Example | Comments |
+| :-- | :-- | :-- |
+| `district_count` | 15 | |
+| `day_1_name` … `day_5_name` | Monday | Day names for table headings (SA local date) |
+| `day_1_date` … `day_5_date` | 05/10 | dd/mm for table headings |
+| `districts` | see below | Today's values for all 15 districts |
 
-## Specific District Sensors
+```yaml
+districts:
+  flinders: {name: Flinders, rating: High, level: 2, fbi: 30, fire_ban: true}
+  mount_lofty_ranges: {name: Mount Lofty Ranges, rating: Moderate, level: 1, fbi: 15, fire_ban: false}
+  # ...one entry for each of the 15 districts
+```
 
-During the config flow, you can select none, or any number of specific districts to monitor, this will then create a new sensor `sensor.sa_cfs_DISTRICTNAME` with the state as the current Fire Danger Rating, and the following attributes:
-| Attribute | Example Data                | Comments | 
-| :-------- | :-------------------------- | :- |
-| `district_name` | Flinders ||
-| `day_1_rating` | Moderate ||
-| `day_1_fbi` | 15 ||
-| `day_1_fireban` | No ||
-| `day_1_name` | Saturday | Now in main sensor, possibly to be removed from here |
-| `day_1_date` | 04/10 | Now in main sensor, possibly to be removed from here |
-| `day_2_rating` | Moderate ||
-| `day_2_fbi` | 20 ||
-| `day_2_fireban` | No ||
-| `day_2_name` | Sunday | Now in main sensor, possibly to be removed from here |
-| `day_2_date` | 05/10 | Now in main sensor, possibly to be removed from here |
-| `day_3_rating` | No Rating ||
-| `day_3_fbi` | 10 ||
-| `day_3_fireban` | No ||
-| `day_3_name` | Monday | Now in main sensor, possibly to be removed from here |
-| `day_3_date` | 06/10 | Now in main sensor, possibly to be removed from here |
-| `day_4_rating` | No Rating ||
-| `day_4_fbi` | 8 ||
-| `day_4_fireban` | No ||
-| `day_4_name` | Tuesday | Now in main sensor, possibly to be removed from here |
-| `day_4_date` | 07/10 | Now in main sensor, possibly to be removed from here |
-| `day_5_rating` | No Rating ||
-| `day_5_fbi` | 10 ||
-| `day_5_fireban` | No ||
-| `day_5_name` | Wednesday | Now in main sensor, possibly to be removed from here |
-| `day_5_date` | 08/10 | Now in main sensor, possibly to be removed from here |
-| `icon` | mdi:map-marker-alert-outline | Possibly change to mdi:fire-alert to match main sensor |
-| `friendly_name` | SA CFS Flinders ||
+## District devices
+Each district you select in the config flow becomes a device, **SA CFS &lt;District&gt;**, with these entities:
+
+| Entity | State |
+| :-- | :-- |
+| `sensor.sa_cfs_<district>_fire_danger_rating` | Today's rating (enum: No Rating / Moderate / High / Extreme / Catastrophic) |
+| `sensor.sa_cfs_<district>_fire_behaviour_index` | Today's FBI (number) |
+| `binary_sensor.sa_cfs_<district>_total_fire_ban_today` | `on` when a total fire ban is declared today |
+| `binary_sensor.sa_cfs_<district>_total_fire_ban_tomorrow` | `on` when a total fire ban is declared tomorrow |
+
+The rating sensor has these attributes:
+
+| Attribute | Example | Comments |
+| :-- | :-- | :-- |
+| `district_name` | Flinders | |
+| `level` | 2 | Today's level, 0–4 |
+| `day_N_rating` | High | N = 1 (today) to 5 |
+| `day_N_level` | 2 | |
+| `day_N_fbi` | 30 | number |
+| `day_N_fire_ban` | true | boolean |
+| `forecast` | list | One entry per day the feed has: `{date: "2026-10-05", day: Monday, rating, level, fbi, fire_ban}` |
+
+Template examples:
+```yaml
+{{ states('sensor.sa_cfs_flinders_fire_danger_rating') }}
+{{ state_attr('sensor.sa_cfs_flinders_fire_danger_rating', 'day_2_rating') }}
+{{ state_attr('sensor.sa_cfs_flinders_fire_danger_rating', 'forecast')[1].rating }}
+{{ is_state('binary_sensor.sa_cfs_flinders_total_fire_ban_tomorrow', 'on') }}
+```
+
+### Upgrading from v0.1.x
+| Old | New |
+| :-- | :-- |
+| `sensor.sa_cfs_fire_danger` (state "HH:MM dd/mm/YYYY") | `sensor.sa_cfs_fire_danger_issued` (timestamp) |
+| `<district>_rating` / `_fbi` / `_fireban` on the summary | `districts.<district>.rating` / `.fbi` / `.fire_ban` |
+| `sensor.sa_cfs_<district>` | `sensor.sa_cfs_<district>_fire_danger_rating` |
+| `day_N_fireban` = "Yes"/"No" | `day_N_fire_ban` = true/false |
+| `day_N_name` / `day_N_date` on district sensors | Use the summary sensor's `day_N_name` / `day_N_date` |
+| Template binary sensor for today's fire ban | `binary_sensor.sa_cfs_<district>_total_fire_ban_today` |
 
 ## Usage/Examples
-Example code shows Flinders district, and possibly a few Sections specific configurations as these were pulled from my test setup.
+The examples use the Flinders district.
 
 ### Custom Card
-Same as the original picture entity card with fire ban overlay - now has a custom card and GUI config to set it up:
+A custom card with a GUI editor shows the gauge, with an optional fire ban overlay. Pick a `..._fire_danger_rating` entity.
 <img width="931" height="524" alt="image" src="https://github.com/user-attachments/assets/f229acb1-8dc7-400f-b77d-d7f831098f64" />
 
 ### Picture Entity
-Picture Entity to show the coloured wheel. 3 different style SVG's I've found are included, or use your own.
+A picture entity card can show the coloured wheel. Three SVG gauge styles are included, or you can use your own.
 <img width="1578" height="347" alt="image" src="https://github.com/user-attachments/assets/e14a068b-0c37-4897-a326-1df9bbed6398" />
-Change the images to gauge1 / gauge2 / gauge3 as needed for the different styles.
+For the other styles, change `gauge1` to `gauge2` or `gauge3`.
 
 ```yaml
 type: picture-entity
-entity: sensor.sa_cfs_flinders
+entity: sensor.sa_cfs_flinders_fire_danger_rating
 fit_mode: contain
 show_state: false
 show_name: false
 state_image:
-  unknown: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-unavailable.svg
+  unknown: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-unknown.svg
   No Rating: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-norating.svg
   Moderate: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-moderate.svg
   High: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-high.svg
   Extreme: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-extreme.svg
   Catastrophic: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-catastrophic.svg
 ```
+
 ### Picture Elements with Fire Ban overlay
-Picture Entity to show the coloured wheel as above, but with a WIP overlay icon if today is a fire ban.
-This is currently a bit hacky as requires a Template binary sensor with the specific region set.
-```yaml
-{{ state_attr('sensor.sa_cfs_flinders', 'day_1_fireban') == 'Yes' }}
-```
+Shows the coloured wheel as above, with a fire ban icon when there is a total fire ban today.
 <img width="223" height="146" alt="image" src="https://github.com/user-attachments/assets/cd18648d-c0b8-42e7-80f1-b81e0e2bc31d" />
 
 ```yaml
@@ -149,9 +146,9 @@ type: picture-elements
 image: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-norating.svg
 elements:
   - type: image
-    entity: sensor.sa_cfs_flinders
+    entity: sensor.sa_cfs_flinders_fire_danger_rating
     state_image:
-      unknown: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-unavailable.svg
+      unknown: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-unknown.svg
       No Rating: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-norating.svg
       Moderate: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-moderate.svg
       High: /hacsfiles/sa_cfs_fire_danger/afdr-gauge1-high.svg
@@ -166,11 +163,11 @@ elements:
       height: 100%
   - type: conditional
     conditions:
-      - entity: binary_sensor.fire_ban_today
+      - entity: binary_sensor.sa_cfs_flinders_total_fire_ban_today
         state: "on"
     elements:
       - type: image
-        entity: binary_sensor.fire_ban_today
+        entity: binary_sensor.sa_cfs_flinders_total_fire_ban_today
         state_image:
           "on": /hacsfiles/sa_cfs_fire_danger/fire_ban.svg
         tap_action: none
@@ -183,27 +180,25 @@ elements:
           height: 100%
 ```
 
-
 ### Single District Forecast Entity List
-Requires config-template-card to pull the actual day names from the sensor.
+Needs [multiple-entity-row](https://github.com/benct/lovelace-multiple-entity-row) and [config-template-card](https://github.com/iantrich/config-template-card). config-template-card reads the day names from the summary sensor.
 
 <img width="510" height="299" alt="image" src="https://github.com/user-attachments/assets/32dad367-a4bf-4996-b409-a0a0767faac0" />
 
 ```yaml
 type: custom:config-template-card
 variables:
-  DAY1_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_1_name
-  DAY2_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_2_name
-  DAY3_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_3_name
-  DAY4_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_4_name
-  DAY5_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_5_name
+  DAY1_NAME: states['sensor.sa_cfs_fire_danger_issued'].attributes.day_1_name
+  DAY2_NAME: states['sensor.sa_cfs_fire_danger_issued'].attributes.day_2_name
+  DAY3_NAME: states['sensor.sa_cfs_fire_danger_issued'].attributes.day_3_name
+  DAY4_NAME: states['sensor.sa_cfs_fire_danger_issued'].attributes.day_4_name
 entities:
-  - sensor.sa_cfs_flinders
+  - sensor.sa_cfs_flinders_fire_danger_rating
 card:
   type: entities
   title: Flinders District
   entities:
-    - entity: sensor.sa_cfs_flinders
+    - entity: sensor.sa_cfs_flinders_fire_danger_rating
       type: custom:multiple-entity-row
       show_state: false
       name: ${DAY1_NAME}
@@ -212,9 +207,9 @@ card:
           name: Rating
         - attribute: day_1_fbi
           name: FBI
-        - attribute: day_1_fireban
+        - attribute: day_1_fire_ban
           name: Fire Ban
-    - entity: sensor.sa_cfs_flinders
+    - entity: sensor.sa_cfs_flinders_fire_danger_rating
       type: custom:multiple-entity-row
       show_state: false
       name: ${DAY2_NAME}
@@ -223,9 +218,9 @@ card:
           name: Rating
         - attribute: day_2_fbi
           name: FBI
-        - attribute: day_2_fireban
+        - attribute: day_2_fire_ban
           name: Fire Ban
-    - entity: sensor.sa_cfs_flinders
+    - entity: sensor.sa_cfs_flinders_fire_danger_rating
       type: custom:multiple-entity-row
       show_state: false
       name: ${DAY3_NAME}
@@ -234,9 +229,9 @@ card:
           name: Rating
         - attribute: day_3_fbi
           name: FBI
-        - attribute: day_3_fireban
+        - attribute: day_3_fire_ban
           name: Fire Ban
-    - entity: sensor.sa_cfs_flinders
+    - entity: sensor.sa_cfs_flinders_fire_danger_rating
       type: custom:multiple-entity-row
       show_state: false
       name: ${DAY4_NAME}
@@ -245,282 +240,73 @@ card:
           name: Rating
         - attribute: day_4_fbi
           name: FBI
-        - attribute: day_4_fireban
+        - attribute: day_4_fire_ban
           name: Fire Ban
 ```
 
-### Multiple District Forecast Table
-Requires flex-table-card and config-template-card.
-
-<img width="1040" height="544" alt="image" src="https://github.com/user-attachments/assets/49ce3a18-7731-4eed-90b6-91688bc06183" />
-
-```yaml
-type: custom:config-template-card
-variables:
-  DAY1_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_1_name
-  DAY2_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_2_name
-  DAY3_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_3_name
-  DAY4_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_4_name
-  DAY5_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_5_name
-  DAY1_DATE: states['sensor.sa_cfs_fire_danger'].attributes.day_1_date
-  DAY2_DATE: states['sensor.sa_cfs_fire_danger'].attributes.day_2_date
-  DAY3_DATE: states['sensor.sa_cfs_fire_danger'].attributes.day_3_date
-  DAY4_DATE: states['sensor.sa_cfs_fire_danger'].attributes.day_4_date
-  DAY5_DATE: states['sensor.sa_cfs_fire_danger'].attributes.day_5_date
-entities:
-  - sensor.sa_cfs_fire_danger
-card:
-  type: custom:flex-table-card
-  title: SA CFS Fire Danger Ratings
-  entities:
-    include: sensor.sa_cfs*
-    exclude: sensor.sa_cfs_fire_danger
-  columns:
-    - data: district_name
-      name: District
-    - data: day_1_rating
-      name: Today
-      align: center
-      modify: |-
-        if (x == "No Rating")
-          "No Rating"
-        else if (x == "Moderate")
-          '<div style="background-color:#64bf30;">Moderate</div>'
-        else if (x == "High")
-          '<div style="background-color:#fedd3a;">High</div>'
-        else if (x == "Extreme")
-          '<div style="background-color:#f78100;">Extreme</div>'
-        else if (x == "Catastrophic")
-          '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div>'
-        else x
-    - data: day_1_fbi
-      name: ""
-      align: center
-    - data: day_2_rating
-      name: Tomorrow
-      align: center
-      modify: |-
-        if (x == "No Rating")
-          "No Rating"
-        else if (x == "Moderate")
-          '<div style="background-color:#64bf30;">Moderate</div>'
-        else if (x == "High")
-          '<div style="background-color:#fedd3a;">High</div>'
-        else if (x == "Extreme")
-          '<div style="background-color:#f78100;">Extreme</div>'
-        else if (x == "Catastrophic")
-          '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div>'
-        else x
-    - data: day_2_fbi
-      name: ""
-      align: center
-    - data: day_3_rating
-      name: ${DAY3_DATE}
-      align: center
-      modify: |-
-        if (x == "No Rating")
-          "No Rating"
-        else if (x == "Moderate")
-          '<div style="background-color:#64bf30;">Moderate</div>'
-        else if (x == "High")
-          '<div style="background-color:#fedd3a;">High</div>'
-        else if (x == "Extreme")
-          '<div style="background-color:#f78100;">Extreme</div>'
-        else if (x == "Catastrophic")
-          '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div>'
-        else x
-    - data: day_3_fbi
-      name: ""
-      align: center
-    - data: day_4_rating
-      name: ${DAY4_DATE}
-      align: center
-      modify: |-
-        if (x == "No Rating")
-          "No Rating"
-        else if (x == "Moderate")
-          '<div style="background-color:#64bf30;">Moderate</div>'
-        else if (x == "High")
-          '<div style="background-color:#fedd3a;">High</div>'
-        else if (x == "Extreme")
-          '<div style="background-color:#f78100;">Extreme</div>'
-        else if (x == "Catastrophic")
-          '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div>'
-        else x
-    - data: day_4_fbi
-      name: ""
-      align: center
-grid_options:
-  columns: 24
-```
-
 ### Multiple District Forecast Table (with Fire Bans)
-Requires flex-table-card and config-template-card.
-Does some wonky line spacing if one day in the row has a fire ban - or if the district doesn't have any all week. Haven't looked into it much yet.
+Needs [flex-table-card](https://github.com/custom-cards/flex-table-card) and config-template-card. It shows one row per district you selected.
+
+The colour logic is written once as a YAML anchor (`&rating_cell`) and reused for each day. Anchors work in YAML-mode dashboards and in the card's code editor, but the HA UI expands them when it saves.
 
 <img width="934" height="756" alt="image" src="https://github.com/user-attachments/assets/e8c2e800-33cf-4429-af7d-fb351e0fe23b" />
 
 ```yaml
 type: custom:config-template-card
 variables:
-  DAY1_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_1_name
-  DAY2_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_2_name
-  DAY3_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_3_name
-  DAY4_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_4_name
-  DAY5_NAME: states['sensor.sa_cfs_fire_danger'].attributes.day_5_name
-  DAY1_DATE: states['sensor.sa_cfs_fire_danger'].attributes.day_1_date
-  DAY2_DATE: states['sensor.sa_cfs_fire_danger'].attributes.day_2_date
-  DAY3_DATE: states['sensor.sa_cfs_fire_danger'].attributes.day_3_date
-  DAY4_DATE: states['sensor.sa_cfs_fire_danger'].attributes.day_4_date
-  DAY5_DATE: states['sensor.sa_cfs_fire_danger'].attributes.day_5_date
+  DAY3_DATE: states['sensor.sa_cfs_fire_danger_issued'].attributes.day_3_date
+  DAY4_DATE: states['sensor.sa_cfs_fire_danger_issued'].attributes.day_4_date
 entities:
-  - sensor.sa_cfs_fire_danger
+  - sensor.sa_cfs_fire_danger_issued
 card:
   type: custom:flex-table-card
   title: SA CFS Fire Danger Ratings
   entities:
-    include: sensor.sa_cfs*
-    exclude: sensor.sa_cfs_fire_danger
+    include: sensor.sa_cfs_*_fire_danger_rating
   columns:
     - data: district_name
       name: District
-    - data: day_1_rating, day_1_fireban
+    - data: day_1_rating, day_1_fire_ban
       name: Today
       align: center
       multi_delimiter: ","
-      modify: |-
-        var value1=String(x.split(',')[0]);
-        var value2=String(x.split(',')[1]);
-        if (value2 == "Yes")
-          if (value1 == "No Rating")
-            'No Rating<br><div style="background-color:#ff0000;">FIRE BAN</div>'
-          else if (value1 == "Moderate")
-            '<div style="background-color:#64bf30;">Moderate</div><div style="background-color:#ff0000;">FIRE BAN</div>'
-          else if (value1 == "High")
-            '<div style="background-color:#fedd3a;">High</div><div style="background-color:#ff0000;">FIRE BAN</div>'
-          else if (value1 == "Extreme")
-            '<div style="background-color:#f78100;">Extreme</div><div style="background-color:#ff0000;">FIRE BAN</div>'
-          else if (value1 == "Catastrophic")
-            '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div><div style="background-color:#ff0000;">FIRE BAN</div>'
-          else value1
-        else if (value2 == "No")
-          if (value1 == "No Rating")
-            "No Rating"
-          else if (value1 == "Moderate")
-            '<div style="background-color:#64bf30;color:#000000;">Moderate</div>'
-          else if (value1 == "High")
-            '<div style="background-color:#fedd3a;color:#000000;">High</div>'
-          else if (value1 == "Extreme")
-            '<div style="background-color:#f78100;color:#000000;">Extreme</div>'
-          else if (value1 == "Catastrophic")
-            '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div>'
-          else x
-        else x
+      modify: &rating_cell |-
+        var rating = String(x.split(',')[0]);
+        var ban = String(x.split(',')[1]) == "true";
+        var colours = {
+          "Moderate": "background-color:#64bf30;color:#000000;",
+          "High": "background-color:#fedd3a;color:#000000;",
+          "Extreme": "background-color:#f78100;color:#000000;",
+          "Catastrophic": "background-color:#ad0909;color:#FFFFFF;"
+        };
+        var cell = rating == "null" || rating == "undefined" || rating == "" ? "-"
+          : colours[rating] ? '<div style="' + colours[rating] + '">' + rating + '</div>'
+          : rating;
+        ban ? cell + '<div style="background-color:#ff0000;">FIRE BAN</div>' : cell
     - data: day_1_fbi
       name: ""
       align: center
-    - data: day_2_rating, day_2_fireban
+    - data: day_2_rating, day_2_fire_ban
       name: Tomorrow
       align: center
       multi_delimiter: ","
-      modify: |-
-        var value1=String(x.split(',')[0]);
-        var value2=String(x.split(',')[1]);
-        if (value2 == "Yes")
-          if (value1 == "No Rating")
-            'No Rating<br><div style="background-color:#ff0000;">FIRE BAN</div>'
-          else if (value1 == "Moderate")
-            '<div style="background-color:#64bf30;">Moderate</div><div style="background-color:#ff0000;">FIRE BAN</div>'
-          else if (value1 == "High")
-            '<div style="background-color:#fedd3a;">High</div><div style="background-color:#ff0000;">FIRE BAN</div>'
-          else if (value1 == "Extreme")
-            '<div style="background-color:#f78100;">Extreme</div><div style="background-color:#ff0000;">FIRE BAN</div>'
-          else if (value1 == "Catastrophic")
-            '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div><div style="background-color:#ff0000;">FIRE BAN</div>'
-          else value1
-        else if (value2 == "No")
-          if (value1 == "No Rating")
-            "No Rating"
-          else if (value1 == "Moderate")
-            '<div style="background-color:#64bf30;">Moderate</div>'
-          else if (value1 == "High")
-            '<div style="background-color:#fedd3a;">High</div>'
-          else if (value1 == "Extreme")
-            '<div style="background-color:#f78100;">Extreme</div>'
-          else if (value1 == "Catastrophic")
-            '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div>'
-          else x
-        else x
+      modify: *rating_cell
     - data: day_2_fbi
       name: ""
       align: center
-    - data: day_3_rating, day_3_fireban
+    - data: day_3_rating, day_3_fire_ban
       name: ${DAY3_DATE}
       align: center
       multi_delimiter: ","
-      modify: |-
-        var value1=String(x.split(',')[0]);
-        var value2=String(x.split(',')[1]);
-        if (value2 == "Yes")
-          if (value1 == "No Rating")
-            'No Rating<br><div style="background-color:#ff0000;">FIRE BAN</div>'
-          else if (value1 == "Moderate")
-            '<div style="background-color:#64bf30;">Moderate</div><div style="background-color:#ff0000;">FIRE BAN</div>'
-          else if (value1 == "High")
-            '<div style="background-color:#fedd3a;">High</div><div style="background-color:#ff0000;">FIRE BAN</div>'
-          else if (value1 == "Extreme")
-            '<div style="background-color:#f78100;">Extreme</div><div style="background-color:#ff0000;">FIRE BAN</div>'
-          else if (value1 == "Catastrophic")
-            '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div><div style="background-color:#ff0000;">FIRE BAN</div>'
-          else value1
-        else if (value2 == "No")
-          if (value1 == "No Rating")
-            "No Rating"
-          else if (value1 == "Moderate")
-            '<div style="background-color:#64bf30;">Moderate</div>'
-          else if (value1 == "High")
-            '<div style="background-color:#fedd3a;">High</div>'
-          else if (value1 == "Extreme")
-            '<div style="background-color:#f78100;">Extreme</div>'
-          else if (value1 == "Catastrophic")
-            '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div>'
-          else x
-        else x
+      modify: *rating_cell
     - data: day_3_fbi
       name: ""
       align: center
-    - data: day_4_rating, day_4_fireban
+    - data: day_4_rating, day_4_fire_ban
       name: ${DAY4_DATE}
       align: center
       multi_delimiter: ","
-      modify: |-
-        var value1=String(x.split(',')[0]);
-        var value2=String(x.split(',')[1]);
-        if (value2 == "Yes")
-          if (value1 == "No Rating")
-            'No Rating<br><div style="background-color:#ff0000;">FIRE BAN</div>'
-          else if (value1 == "Moderate")
-            '<div style="background-color:#64bf30;">Moderate</div><div style="background-color:#ff0000;">FIRE BAN</div>'
-          else if (value1 == "High")
-            '<div style="background-color:#fedd3a;">High</div><div style="background-color:#ff0000;">FIRE BAN</div>'
-          else if (value1 == "Extreme")
-            '<div style="background-color:#f78100;">Extreme</div><div style="background-color:#ff0000;">FIRE BAN</div>'
-          else if (value1 == "Catastrophic")
-            '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div><div style="background-color:#ff0000;">FIRE BAN</div>'
-          else value1
-        else if (value2 == "No")
-          if (value1 == "No Rating")
-            "No Rating"
-          else if (value1 == "Moderate")
-            '<div style="background-color:#64bf30;">Moderate</div>'
-          else if (value1 == "High")
-            '<div style="background-color:#fedd3a;">High</div>'
-          else if (value1 == "Extreme")
-            '<div style="background-color:#f78100;">Extreme</div>'
-          else if (value1 == "Catastrophic")
-            '<div style="background-color:#ad0909;color:#FFFFFF;">Catastrophic</div>'
-          else x
-        else x
+      modify: *rating_cell
     - data: day_4_fbi
       name: ""
       align: center

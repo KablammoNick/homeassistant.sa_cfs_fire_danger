@@ -3,29 +3,30 @@
     "step": {
       "user": {
         "title": "SA CFS Fire Danger Setup",
-        "description": "Please select the fire ban districts you wish to create individual sensors for. \n\nIf you select none, only the main summary sensor (`sensor.sa_cfs_fire_danger`) will be created.",
+        "description": "Select the fire ban districts to create devices for. Each district gets a fire danger rating sensor, a fire behaviour index sensor, and total fire ban (today/tomorrow) binary sensors.\n\nIf you select none, only `sensor.sa_cfs_fire_danger_issued` is created.",
         "data": {
           "districts": "Districts to Monitor"
         }
       }
     },
-    "error": {
-      "cannot_connect": "Unable to connect to the CFS server to retrieve the list of districts. Please check your internet connection and try again.",
-      "no_regions_found": "No fire ban districts were found in the data from the CFS server."
-    },
     "abort": {
-      "already_configured": "This service is already configured."
+      "already_configured": "This service is already configured.",
+      "cannot_connect": "Unable to connect to the CFS server to retrieve the list of districts. Please check your internet connection and try again.",
+      "no_districts_found": "No fire ban districts were found in the data from the CFS server."
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "Update Monitored Districts",
-        "description": "Select the fire ban districts you wish to monitor. Deselecting a district will remove its sensor.",
+        "description": "Select the fire ban districts you wish to monitor. Deselecting a district removes its device and entities.",
         "data": {
           "districts": "Districts to Monitor"
         }
       }
+    },
+    "abort": {
+      "cannot_connect": "Unable to connect to the CFS server to retrieve the list of districts. Please check your internet connection and try again."
     }
   }
 }
