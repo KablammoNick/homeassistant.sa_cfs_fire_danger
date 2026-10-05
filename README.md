@@ -117,6 +117,24 @@ The examples use the Flinders district.
 A custom card with a GUI editor shows the gauge, with an optional fire ban overlay. Pick a `..._fire_danger_rating` entity.
 <img width="931" height="524" alt="image" src="https://github.com/user-attachments/assets/f229acb1-8dc7-400f-b77d-d7f831098f64" />
 
+### Forecast Table Card
+A built-in table card shows a multi-day forecast for several districts. You don't need any other custom cards for it. Each cell shows the rating colour, the FBI, and a **TOTAL FIRE BAN** banner when there is one. The column headings come from the integration, so they always match the data. Click a district name to open its details.
+
+<img width="640" alt="Forecast table card" src="docs/table-card.png" />
+
+Add it from the card picker ("SA CFS Fire Danger Table") or in YAML:
+
+```yaml
+type: custom:sa-cfs-fire-danger-table-card
+title: SA CFS Fire Danger Ratings
+days: 4              # 1-5, default 4
+show_fbi: true       # default true
+show_fire_ban: true  # default true
+# entities:          # optional; defaults to every district you selected, sorted by name
+#   - sensor.sa_cfs_flinders_fire_danger_rating
+#   - sensor.sa_cfs_mount_lofty_ranges_fire_danger_rating
+```
+
 ### Picture Entity
 A picture entity card can show the coloured wheel. Three SVG gauge styles are included, or you can use your own.
 <img width="1578" height="347" alt="image" src="https://github.com/user-attachments/assets/e14a068b-0c37-4897-a326-1df9bbed6398" />
@@ -245,6 +263,8 @@ card:
 ```
 
 ### Multiple District Forecast Table (with Fire Bans)
+The [Forecast Table Card](#forecast-table-card) above does this without any other custom cards. This flex-table-card version is kept for anyone who wants to customise it further.
+
 Needs [flex-table-card](https://github.com/custom-cards/flex-table-card) and config-template-card. It shows one row per district you selected.
 
 The colour logic is written once as a YAML anchor (`&rating_cell`) and reused for each day. Anchors work in YAML-mode dashboards and in the card's code editor, but the HA UI expands them when it saves.
