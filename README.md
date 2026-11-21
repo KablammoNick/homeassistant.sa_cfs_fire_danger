@@ -122,6 +122,8 @@ These cards come with the integration. Add them from the card picker (search for
 | [Forecast Table Card](#forecast-table-card) | Multi-day forecast for several districts |
 | [Map Card](#map-card) | Map of all 15 districts, with buttons to switch days |
 
+If a card is missing from the card picker after an update, check **Settings → Dashboards → ⋮ → Resources** for an entry pointing at `sa-cfs-fire-danger-card.js` and delete it. The integration loads the cards itself, and an extra copy can stop new cards from appearing. Then reload the page.
+
 ### Gauge Card
 Shows today's rating as a gauge, in one of three styles, with an optional fire ban icon when there is a total fire ban today. The title defaults to the district name. You can change it or hide it.
 

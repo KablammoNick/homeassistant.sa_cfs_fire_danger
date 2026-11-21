@@ -10,6 +10,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.loader import async_get_integration
 
 from .const import CONF_DISTRICTS, DOMAIN
 from .coordinator import CFSDataUpdateCoordinator, CFSRuntimeData
@@ -39,7 +40,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             )
         ]
     )
-    add_extra_js_url(hass, f"{STATIC_URL}/sa-cfs-fire-danger-card.js")
+    # Versioned URL so browsers fetch the new card file after an update
+    # instead of keeping a cached copy.
+    integration = await async_get_integration(hass, DOMAIN)
+    add_extra_js_url(hass, f"{STATIC_URL}/sa-cfs-fire-danger-card.js?v={integration.version}")
     return True
 
 

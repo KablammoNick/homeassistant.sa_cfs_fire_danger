@@ -106,3 +106,14 @@ async def test_old_entities_removed(hass: HomeAssistant, aioclient_mock, feed_xm
     assert ent_reg.async_get(old.entity_id) is None
     assert ent_reg.async_get(old_issued.entity_id) is None
     assert hass.states.get("sensor.sa_cfs_fire_danger_summary") is not None
+
+
+async def test_card_url_is_versioned(hass: HomeAssistant, entry):
+    """The card file URL carries the version so browsers don't keep a cached copy."""
+    from homeassistant.components.frontend import DATA_EXTRA_MODULE_URL
+    from homeassistant.loader import async_get_integration
+
+    version = (await async_get_integration(hass, DOMAIN)).version
+    assert f"/hacsfiles/{DOMAIN}/sa-cfs-fire-danger-card.js?v={version}" in hass.data[
+        DATA_EXTRA_MODULE_URL
+    ].urls
