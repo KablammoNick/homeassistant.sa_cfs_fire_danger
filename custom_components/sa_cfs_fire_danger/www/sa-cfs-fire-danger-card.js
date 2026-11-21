@@ -2,10 +2,31 @@ import { LitElement, html, svg, css } from "https://unpkg.com/lit-element@2.0.1/
 import { VIEWBOX, DISTRICTS } from "./sa-cfs-map-data.js";
 
 /* -----------------------------------------------------------
- * Card metadata
+ * Registration helpers
+ *
+ * The file can end up loaded twice (e.g. an old Lovelace resource as well as
+ * the integration's own loader, or a cached copy). Skipping anything already
+ * registered keeps the second copy from throwing "already defined" and
+ * stopping before later cards are registered.
  * ----------------------------------------------------------- */
 window.customCards = window.customCards || [];
-window.customCards.push({
+
+const registerCard = (card) => {
+  if (!window.customCards.some((c) => c.type === card.type)) {
+    window.customCards.push(card);
+  }
+};
+
+const defineElement = (name, cls) => {
+  if (!customElements.get(name)) {
+    customElements.define(name, cls);
+  }
+};
+
+/* -----------------------------------------------------------
+ * Card metadata
+ * ----------------------------------------------------------- */
+registerCard({
   type: "sa-cfs-fire-danger-card",
   name: "SA CFS Fire Danger Gauge Card",
   description: "Today's fire danger rating for one district as a gauge, with an optional fire ban overlay.",
@@ -104,7 +125,7 @@ class SaCfsFireDangerCardEditor extends LitElement {
   }
 }
 
-customElements.define(
+defineElement(
   "sa-cfs-fire-danger-card-editor",
   SaCfsFireDangerCardEditor
 );
@@ -241,12 +262,12 @@ class SaCfsFireDangerCard extends LitElement {
   }
 }
 
-customElements.define("sa-cfs-fire-danger-card", SaCfsFireDangerCard);
+defineElement("sa-cfs-fire-danger-card", SaCfsFireDangerCard);
 
 /* ===========================================================
  * FORECAST TABLE CARD
  * =========================================================== */
-window.customCards.push({
+registerCard({
   type: "sa-cfs-fire-danger-table-card",
   name: "SA CFS Fire Danger Table",
   description: "Multi-day fire danger ratings, FBI and total fire bans for several districts.",
@@ -397,7 +418,7 @@ class SaCfsFireDangerTableCardEditor extends LitElement {
   }
 }
 
-customElements.define(
+defineElement(
   "sa-cfs-fire-danger-table-card-editor",
   SaCfsFireDangerTableCardEditor
 );
@@ -798,12 +819,12 @@ class SaCfsFireDangerTableCard extends LitElement {
   }
 }
 
-customElements.define("sa-cfs-fire-danger-table-card", SaCfsFireDangerTableCard);
+defineElement("sa-cfs-fire-danger-table-card", SaCfsFireDangerTableCard);
 
 /* ===========================================================
  * SINGLE DISTRICT FORECAST CARD
  * =========================================================== */
-window.customCards.push({
+registerCard({
   type: "sa-cfs-fire-danger-district-card",
   name: "SA CFS Fire Danger District Forecast",
   description: "Day-by-day rating, FBI and total fire ban for one district.",
@@ -911,7 +932,7 @@ class SaCfsFireDangerDistrictCardEditor extends LitElement {
   }
 }
 
-customElements.define(
+defineElement(
   "sa-cfs-fire-danger-district-card-editor",
   SaCfsFireDangerDistrictCardEditor
 );
@@ -1090,12 +1111,12 @@ class SaCfsFireDangerDistrictCard extends SaCfsFireDangerTableCard {
   }
 }
 
-customElements.define("sa-cfs-fire-danger-district-card", SaCfsFireDangerDistrictCard);
+defineElement("sa-cfs-fire-danger-district-card", SaCfsFireDangerDistrictCard);
 
 /* ===========================================================
  * MAP CARD
  * =========================================================== */
-window.customCards.push({
+registerCard({
   type: "sa-cfs-fire-danger-map-card",
   name: "SA CFS Fire Danger Map",
   description: "Map of South Australia's fire ban districts with ratings and total fire bans by day.",
@@ -1201,7 +1222,7 @@ class SaCfsFireDangerMapCardEditor extends LitElement {
   }
 }
 
-customElements.define("sa-cfs-fire-danger-map-card-editor", SaCfsFireDangerMapCardEditor);
+defineElement("sa-cfs-fire-danger-map-card-editor", SaCfsFireDangerMapCardEditor);
 
 class SaCfsFireDangerMapCard extends SaCfsFireDangerTableCard {
   static get properties() {
@@ -1597,4 +1618,4 @@ class SaCfsFireDangerMapCard extends SaCfsFireDangerTableCard {
   }
 }
 
-customElements.define("sa-cfs-fire-danger-map-card", SaCfsFireDangerMapCard);
+defineElement("sa-cfs-fire-danger-map-card", SaCfsFireDangerMapCard);
