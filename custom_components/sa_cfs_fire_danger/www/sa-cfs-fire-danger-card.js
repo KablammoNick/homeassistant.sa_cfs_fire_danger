@@ -1,4 +1,5 @@
-import { LitElement, html, css } from "https://unpkg.com/lit-element@2.0.1/lit-element.js?module";
+import { LitElement, html, svg, css } from "https://unpkg.com/lit-element@2.0.1/lit-element.js?module";
+import { VIEWBOX, DISTRICTS } from "./sa-cfs-map-data.js";
 
 /* -----------------------------------------------------------
  * Card metadata
@@ -1090,3 +1091,510 @@ class SaCfsFireDangerDistrictCard extends SaCfsFireDangerTableCard {
 }
 
 customElements.define("sa-cfs-fire-danger-district-card", SaCfsFireDangerDistrictCard);
+
+/* ===========================================================
+ * MAP CARD
+ * =========================================================== */
+window.customCards.push({
+  type: "sa-cfs-fire-danger-map-card",
+  name: "SA CFS Fire Danger Map",
+  description: "Map of South Australia's fire ban districts with ratings and total fire bans by day.",
+  preview: true,
+  configurable: true,
+});
+
+const MAP_DEFAULTS = {
+  show_title: true,
+  days: 4,
+  today_tomorrow: true,
+  day_names: "short",
+  show_dates: false,
+  show_fire_ban: true,
+  show_legend: true,
+  show_footer: true,
+};
+
+const MAP_TITLE = "SA Fire Danger Ratings";
+const [, , MAP_WIDTH, MAP_HEIGHT] = VIEWBOX.split(" ").map(Number);
+const MISSING_FILL = "var(--disabled-color, #9e9e9e)";
+// Light grey rather than white so No Rating districts stay visible on a white card.
+const NO_RATING_FILL = "#e6e6e6";
+const FIRE_BAN_ICON = "/hacsfiles/sa_cfs_fire_danger/fire_ban.svg?v=2";
+const FIRE_BAN_ICON_SIZE = 84;
+
+class SaCfsFireDangerMapCardEditor extends LitElement {
+  static get properties() {
+    return {
+      hass: {},
+      _config: {},
+    };
+  }
+
+  setConfig(config) {
+    this._config = { ...config };
+  }
+
+  _schema() {
+    return [
+      { name: "show_title", selector: { boolean: {} } },
+      { name: "title", selector: { text: {} } },
+      {
+        name: "days",
+        selector: { number: { min: 1, max: MAX_DAYS, mode: "slider" } },
+      },
+      { name: "today_tomorrow", selector: { boolean: {} } },
+      {
+        name: "day_names",
+        selector: {
+          select: {
+            mode: "dropdown",
+            options: [
+              { value: "short", label: "Short (Mon)" },
+              { value: "long", label: "Long (Monday)" },
+            ],
+          },
+        },
+      },
+      { name: "show_dates", selector: { boolean: {} } },
+      { name: "show_fire_ban", selector: { boolean: {} } },
+      { name: "show_legend", selector: { boolean: {} } },
+      { name: "show_footer", selector: { boolean: {} } },
+    ];
+  }
+
+  _computeLabel(schema) {
+    return {
+      show_title: "Show title",
+      title: `Title (leave empty for "${MAP_TITLE}")`,
+      days: "Days to choose from",
+      today_tomorrow: "Label the first two days Today / Tomorrow",
+      day_names: "Day names",
+      show_dates: "Show dates on the day buttons",
+      show_fire_ban: "Show total fire ban icons",
+      show_legend: "Show rating legend",
+      show_footer: "Show issued time footer",
+    }[schema.name];
+  }
+
+  _valueChanged(ev) {
+    this.dispatchEvent(
+      new CustomEvent("config-changed", {
+        detail: { config: ev.detail.value },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  render() {
+    if (!this.hass || !this._config) return html``;
+
+    return html`
+      <ha-form
+        .hass=${this.hass}
+        .data=${{ ...MAP_DEFAULTS, ...this._config }}
+        .schema=${this._schema()}
+        .computeLabel=${this._computeLabel}
+        @value-changed=${this._valueChanged}
+      ></ha-form>
+    `;
+  }
+}
+
+customElements.define("sa-cfs-fire-danger-map-card-editor", SaCfsFireDangerMapCardEditor);
+
+class SaCfsFireDangerMapCard extends SaCfsFireDangerTableCard {
+  static get properties() {
+    return {
+      ...super.properties,
+      _day: {},
+      _selected: {},
+    };
+  }
+
+  constructor() {
+    super();
+    this._day = 0;
+    this._selected = null;
+  }
+
+  static getConfigElement() {
+    return document.createElement("sa-cfs-fire-danger-map-card-editor");
+  }
+
+  static getStubConfig() {
+    return {};
+  }
+
+  setConfig(config) {
+    const days = Number(config.days ?? MAP_DEFAULTS.days);
+    if (!Number.isInteger(days) || days < 1 || days > MAX_DAYS) {
+      throw new Error(`days must be between 1 and ${MAX_DAYS}`);
+    }
+    if (config.day_names && !["short", "long"].includes(config.day_names)) {
+      throw new Error("day_names must be short or long");
+    }
+    this.config = { ...MAP_DEFAULTS, ...config, days };
+    if (this._day >= days) this._day = 0;
+  }
+
+  _forecast(key) {
+    const district = this.hass.states[SUMMARY_ENTITY]?.attributes.districts?.[key];
+    return district?.forecast?.[this._day] || null;
+  }
+
+  _fill(forecast) {
+    const rating = forecast?.rating;
+    if (!rating) return MISSING_FILL;
+    if (rating === "No Rating") return NO_RATING_FILL;
+    return (RATING_STYLES[rating] || {}).background || MISSING_FILL;
+  }
+
+  _select(ev, key) {
+    ev.stopPropagation();
+    this._selected = this._selected === key ? null : key;
+  }
+
+  _onKey(ev, key) {
+    if (ev.key === "Enter" || ev.key === " ") {
+      ev.preventDefault();
+      this._select(ev, key);
+    }
+  }
+
+  _setDay(ev, day) {
+    ev.stopPropagation();
+    this._day = day;
+  }
+
+  _renderDayButtons() {
+    if (this.config.days < 2) return "";
+    return html`
+      <div class="days" role="group" aria-label="Forecast day">
+        ${this._headings().map(
+          (h, i) => html`<button
+            class="day ${i === this._day ? "selected" : ""}"
+            aria-pressed=${i === this._day ? "true" : "false"}
+            @click=${(ev) => this._setDay(ev, i)}
+          >
+            <span class="label-long">${h.label}</span><span class="label-short">${h.short}</span>
+            ${this.config.show_dates && h.date ? html`<span class="day-date">${h.date}</span>` : ""}
+          </button>`
+        )}
+      </div>
+    `;
+  }
+
+  _renderMap() {
+    const keys = Object.keys(DISTRICTS);
+    const bans = this.config.show_fire_ban
+      ? keys.filter((key) => this._forecast(key)?.fire_ban === true)
+      : [];
+    const selected = this._selected && DISTRICTS[this._selected];
+
+    return svg`
+      <svg class="map" viewBox=${VIEWBOX} role="img" aria-label="Fire danger map of South Australia">
+        ${keys.map((key) => {
+          const forecast = this._forecast(key);
+          return svg`<path
+            class="district"
+            d=${DISTRICTS[key].path}
+            fill=${this._fill(forecast)}
+            tabindex="0"
+            role="button"
+            aria-label=${`${DISTRICTS[key].name}: ${forecast?.rating || "no data"}`}
+            @click=${(ev) => this._select(ev, key)}
+            @keydown=${(ev) => this._onKey(ev, key)}
+          ></path>`;
+        })}
+        ${selected ? svg`<path class="outline" d=${selected.path}></path>` : ""}
+        ${bans.map(
+          (key) => svg`<circle
+            class="ban-backdrop"
+            cx=${DISTRICTS[key].label[0]}
+            cy=${DISTRICTS[key].label[1]}
+            r=${FIRE_BAN_ICON_SIZE * 0.46}
+          ></circle><image
+            class="ban-icon"
+            href=${FIRE_BAN_ICON}
+            x=${DISTRICTS[key].label[0] - FIRE_BAN_ICON_SIZE / 2}
+            y=${DISTRICTS[key].label[1] - FIRE_BAN_ICON_SIZE / 2}
+            width=${FIRE_BAN_ICON_SIZE}
+            height=${FIRE_BAN_ICON_SIZE}
+          ></image>`
+        )}
+      </svg>
+    `;
+  }
+
+  _renderPopup() {
+    const key = this._selected;
+    if (!key || !DISTRICTS[key]) return "";
+    const forecast = this._forecast(key) || {};
+    const [x, y] = DISTRICTS[key].label;
+    const left = (x / MAP_WIDTH) * 100;
+    const top = (y / MAP_HEIGHT) * 100;
+    // Keep the popup inside the map: open below points near the top, and
+    // anchor to the nearest side near the left/right edges.
+    const horizontal = left < 30 ? "0%" : left > 70 ? "-100%" : "-50%";
+    const vertical = top < 30 ? "16px" : "calc(-100% - 16px)";
+    const rating = forecast.rating;
+    const style = RATING_STYLES[rating] || RATING_STYLES["No Rating"];
+    const heading = this._headings()[this._day];
+
+    return html`
+      <div
+        class="popup"
+        style="left:${left}%;top:${top}%;transform:translate(${horizontal}, ${vertical})"
+        @click=${(ev) => ev.stopPropagation()}
+      >
+        <button class="close" aria-label="Close" @click=${() => (this._selected = null)}>✕</button>
+        <div class="popup-name">${DISTRICTS[key].name}</div>
+        <div class="popup-day">${heading?.label}${heading?.date ? ` ${heading.date}` : ""}</div>
+        ${rating
+          ? html`<div
+              class="rating ${rating === "No Rating" ? "no-rating" : ""}"
+              style="background:${style.background};color:${style.color}"
+            >
+              ${rating}
+            </div>`
+          : html`<div class="popup-line muted">No forecast</div>`}
+        ${forecast.fbi !== null && forecast.fbi !== undefined
+          ? html`<div class="popup-line">FBI ${forecast.fbi}</div>`
+          : ""}
+        ${forecast.fire_ban === true
+          ? html`<div class="fire-ban popup-ban">TOTAL FIRE BAN</div>`
+          : forecast.fire_ban === false
+          ? html`<div class="popup-line muted">No total fire ban</div>`
+          : ""}
+      </div>
+    `;
+  }
+
+  _renderLegend() {
+    if (!this.config.show_legend) return "";
+    return html`
+      <div class="legend">
+        ${Object.keys(RATING_STYLES).map(
+          (rating) => html`<span class="legend-item">
+            <span
+              class="swatch ${rating === "No Rating" ? "no-rating" : ""}"
+              style="background:${rating === "No Rating" ? NO_RATING_FILL : RATING_STYLES[rating].background}"
+            ></span
+            >${rating}
+          </span>`
+        )}
+      </div>
+    `;
+  }
+
+  render() {
+    if (!this.hass || !this.config) return html``;
+
+    const hasData = !!this.hass.states[SUMMARY_ENTITY]?.attributes.districts;
+    const title = this.config.show_title ? this.config.title || MAP_TITLE : undefined;
+
+    return html`
+      <ha-card .header=${title}>
+        <div class="card-content" @click=${() => (this._selected = null)}>
+          <div class="map-wrap">
+            ${this._renderDayButtons()} ${this._renderMap()} ${this._renderPopup()}
+          </div>
+          ${hasData
+            ? ""
+            : html`<div class="none">
+                Waiting for ${SUMMARY_ENTITY}. Check the SA CFS Fire Danger integration is set up.
+              </div>`}
+          ${this._renderLegend()} ${this._renderFooter()}
+        </div>
+      </ha-card>
+    `;
+  }
+
+  static get styles() {
+    return [
+      super.styles,
+      css`
+        .map-wrap {
+          position: relative;
+          container-type: inline-size;
+        }
+
+        .map {
+          display: block;
+          width: 100%;
+          height: auto;
+        }
+
+        .district {
+          stroke: var(--card-background-color, #ffffff);
+          stroke-width: 1.5px;
+          vector-effect: non-scaling-stroke;
+          stroke-linejoin: round;
+          cursor: pointer;
+          outline: none;
+        }
+
+        .district:hover,
+        .district:focus-visible {
+          filter: brightness(0.92);
+        }
+
+        .outline {
+          fill: none;
+          stroke: var(--primary-text-color, #212121);
+          stroke-width: 3px;
+          vector-effect: non-scaling-stroke;
+          stroke-linejoin: round;
+          pointer-events: none;
+        }
+
+        .ban-icon,
+        .ban-backdrop {
+          pointer-events: none;
+        }
+
+        /* White disc so the red icon stands out on Extreme/Catastrophic districts. */
+        .ban-backdrop {
+          fill: #ffffff;
+        }
+
+        /* Day buttons sit over SA's straight northern border. */
+        .days {
+          position: absolute;
+          top: 8px;
+          left: 8px;
+          right: 8px;
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 4px;
+          z-index: 1;
+        }
+
+        .day {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          font: inherit;
+          font-size: 0.9em;
+          line-height: 1.2;
+          padding: 4px 10px;
+          border-radius: 16px;
+          border: 1px solid var(--divider-color, #e0e0e0);
+          background: var(--card-background-color, #ffffff);
+          color: var(--primary-text-color, #212121);
+          cursor: pointer;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        .day.selected {
+          background: var(--primary-color, #03a9f4);
+          border-color: var(--primary-color, #03a9f4);
+          color: var(--text-primary-color, #ffffff);
+        }
+
+        .day-date {
+          font-size: 0.8em;
+          opacity: 0.8;
+        }
+
+        @container (max-width: 360px) {
+          .day .label-long {
+            display: none;
+          }
+          .day .label-short {
+            display: inline;
+          }
+          .day {
+            padding: 3px 8px;
+          }
+        }
+
+        .popup {
+          position: absolute;
+          z-index: 2;
+          min-width: 150px;
+          max-width: 60%;
+          background: var(--card-background-color, #ffffff);
+          color: var(--primary-text-color, #212121);
+          border-radius: 8px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+          padding: 8px 28px 8px 10px;
+          font-size: 0.9em;
+        }
+
+        .popup .rating {
+          display: inline-block;
+          padding: 2px 8px;
+          margin-top: 4px;
+          font-size: 1em;
+        }
+
+        .popup-name {
+          font-weight: 500;
+        }
+
+        .popup-day,
+        .muted {
+          color: var(--secondary-text-color, #727272);
+        }
+
+        .popup-line {
+          margin-top: 4px;
+        }
+
+        .popup-ban {
+          display: inline-block;
+          margin-top: 4px;
+          padding: 2px 6px;
+          font-size: 0.8em;
+        }
+
+        .close {
+          position: absolute;
+          top: 4px;
+          right: 4px;
+          border: none;
+          background: none;
+          color: var(--secondary-text-color, #727272);
+          cursor: pointer;
+          font-size: 1em;
+          line-height: 1;
+          padding: 4px;
+        }
+
+        .legend {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 4px 12px;
+          margin-top: 8px;
+          font-size: 0.85em;
+        }
+
+        .legend-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .swatch {
+          width: 12px;
+          height: 12px;
+          border-radius: 3px;
+        }
+
+        .swatch.no-rating {
+          border: 1px solid var(--divider-color, #e0e0e0);
+        }
+      `,
+    ];
+  }
+
+  getCardSize() {
+    return 8;
+  }
+}
+
+customElements.define("sa-cfs-fire-danger-map-card", SaCfsFireDangerMapCard);

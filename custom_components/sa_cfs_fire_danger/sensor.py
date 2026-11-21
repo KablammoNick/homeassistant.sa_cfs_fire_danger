@@ -117,14 +117,23 @@ class CFSSummarySensor(CoordinatorEntity[CFSDataUpdateCoordinator], SensorEntity
             return {}
 
         today = sa_today()
+        dates = forecast_dates(today, MAX_FORECAST_DAYS)
         districts = self.coordinator.data["districts"]
         attrs: dict = {"district_count": len(districts)}
-        for number, day in enumerate(forecast_dates(today, MAX_FORECAST_DAYS), 1):
+        for number, day in enumerate(dates, 1):
             attrs[f"day_{number}_name"] = day.strftime("%A")
             attrs[f"day_{number}_date"] = day.strftime("%d/%m")
 
+        # Today's values at the top level; forecast[i] is day i + 1, always all
+        # five days (values are None where the feed has no forecast for that date).
         attrs["districts"] = {
-            key: {"name": district["name"], **forecast_for(district, today)}
+            key: {
+                "name": district["name"],
+                **forecast_for(district, today),
+                "forecast": [
+                    {"date": day.isoformat(), **forecast_for(district, day)} for day in dates
+                ],
+            }
             for key, district in sorted(districts.items())
         }
         return attrs

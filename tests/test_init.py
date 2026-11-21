@@ -50,13 +50,33 @@ async def test_summary_sensor(hass: HomeAssistant, entry):
     assert issued.state == "2026-10-04T05:30:00+00:00"
     assert issued.attributes["day_1_name"] == "Monday"
     assert issued.attributes["day_1_date"] == "05/10"
-    assert issued.attributes["districts"]["mount_lofty_ranges"] == {
+    mlr = issued.attributes["districts"]["mount_lofty_ranges"]
+    assert {k: v for k, v in mlr.items() if k != "forecast"} == {
         "name": "Mount Lofty Ranges",
         "rating": "Catastrophic",
         "level": 4,
         "fbi": 110,
         "fire_ban": True,
     }
+    # The forecast always holds all five days, aligned to SA dates.
+    assert [day["date"] for day in mlr["forecast"]] == [
+        "2026-10-05",
+        "2026-10-06",
+        "2026-10-07",
+        "2026-10-08",
+        "2026-10-09",
+    ]
+    assert mlr["forecast"][0]["rating"] == "Catastrophic"
+    assert mlr["forecast"][1] == {
+        "date": "2026-10-06",
+        "rating": None,
+        "level": None,
+        "fbi": None,
+        "fire_ban": None,
+    }
+    flinders = issued.attributes["districts"]["flinders"]["forecast"]
+    assert [day["rating"] for day in flinders] == ["High", "Extreme", "No Rating", None, None]
+    assert flinders[1]["fire_ban"] is True
 
 
 async def test_options_change_reloads(hass: HomeAssistant, entry):

@@ -17,7 +17,7 @@ If you're here, you've probably been sent the link to test for me, or you're ver
 ## Installation
 Install as a custom repository in HACS, and the config flow will let you select which districts you want to monitor.
 
-Three [dashboard cards](#dashboard-cards) come with the integration and load automatically. You don't need to install any other custom cards.
+Four [dashboard cards](#dashboard-cards) come with the integration and load automatically. You don't need to install any other custom cards.
 
 > **v0.2.0 is a breaking change.** Entity IDs and attributes have changed (see below). Old `sensor.sa_cfs_<district>` entities are removed automatically; update your dashboards and automations.
 
@@ -120,6 +120,7 @@ These cards come with the integration. Add them from the card picker (search for
 | [Gauge Card](#gauge-card) | Today's rating for one district as a gauge |
 | [District Forecast Card](#district-forecast-card) | Day-by-day forecast for one district |
 | [Forecast Table Card](#forecast-table-card) | Multi-day forecast for several districts |
+| [Map Card](#map-card) | Map of all 15 districts, with buttons to switch days |
 
 ### Gauge Card
 Shows today's rating as a gauge, in one of three styles, with an optional fire ban icon when there is a total fire ban today. The title defaults to the district name. You can change it or hide it.
@@ -190,6 +191,28 @@ flash_interval: 1          # seconds each is shown when fire_ban_display is flas
 #   - sensor.sa_cfs_flinders_fire_danger_rating
 #   - sensor.sa_cfs_mount_lofty_ranges_fire_danger_rating
 ```
+
+### Map Card
+A map of South Australia with every fire ban district coloured by its rating, and a fire ban icon on districts with a total fire ban. Buttons across the top switch between today and the coming days. Click a district to see its rating, FBI and fire ban for the selected day. The map shows all 15 districts, whichever ones you selected in the integration.
+
+<img width="480" alt="Map card" src="docs/map-card.png" />
+
+Card picker name: "SA CFS Fire Danger Map".
+
+```yaml
+type: custom:sa-cfs-fire-danger-map-card
+show_title: true
+# title: Fire danger     # optional; defaults to "SA Fire Danger Ratings"
+days: 4                  # 1-5 day buttons
+today_tomorrow: true     # false = day names on every button
+day_names: short         # short = Mon, long = Monday
+show_dates: false        # dd/mm on each button
+show_fire_ban: true      # fire ban icons
+show_legend: true        # rating colour key
+show_footer: true        # "Issued ..." footer
+```
+
+District boundaries come from the CFS fire danger map (`South_Australia_Fire_Danger_Ratings_Day_0.geojson`). They're simplified and built into the card by `tools/build_map.py`, so the card doesn't download anything. To update them, replace `tools/fire_ban_districts.geojson` and run `python3 tools/build_map.py`.
 
 ## Other dashboard examples
 You can also build displays from the sensors with standard and third-party cards. These examples use the Flinders district.
